@@ -303,6 +303,19 @@ details.settings[open] > summary::before{transform:rotate(90deg)}
   padding:3px 5px;font-size:11.8px;color:var(--text-secondary);max-width:170px;flex:none;
 }
 .wl-row select.exp-pick.none{color:var(--muted);font-style:italic}
+.wl-row input.pos{
+  background:var(--plane);border:1px solid var(--border);border-radius:6px;
+  padding:3px 6px;font-size:11.8px;color:var(--text-secondary);width:76px;flex:none;
+  -moz-appearance:textfield;
+}
+.wl-row input.pos::-webkit-outer-spin-button,
+.wl-row input.pos::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.wl-row input.pos:placeholder-shown{font-style:italic;color:var(--muted)}
+/* Narrow screens: let the row wrap rather than crushing the company name to nothing. */
+@media (max-width:760px){
+  .wl-row{flex-wrap:wrap}
+  .wl-row .n{min-width:110px}
+}
 .addbox{position:relative;margin-top:10px;display:flex;gap:8px}
 .addbox input{
   flex:1;background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;
@@ -456,6 +469,10 @@ footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;borde
     <div class="set-grid">
       <div class="set-sec">
         <h3>Tracked stocks <span id="wlCount" style="text-transform:none;letter-spacing:0"></span></h3>
+        <div class="hint" style="margin:2px 0 8px">Fill in <b>Shares</b> to see this holding on the
+          <b>Review</b> tab of the metrics table — value, portfolio weight and move since your last
+          review. Add <b>Cost/sh</b> too and it works out gain/loss. Both are optional, and both are
+          stored only in this browser.</div>
         <div id="wlList"></div>
         <div class="addbox">
           <input id="addInput" placeholder="Add a ticker or company name…" autocomplete="off">
@@ -2031,6 +2048,12 @@ function renderSettings(){
           o ? esc(o) : "— untagged —"}</option>`).join("")}
         <option value="__new">+ New bucket…</option>
       </select>
+      <input class="pos" type="number" inputmode="decimal" step="any" min="0" data-sh="${esc(w.ticker)}"
+        value="${isFinite(w.shares)?w.shares:""}" placeholder="Shares"
+        title="How many shares you own. Leave blank if you only watch this one.">
+      <input class="pos" type="number" inputmode="decimal" step="any" min="0" data-co="${esc(w.ticker)}"
+        value="${(w.cost!=null&&isFinite(w.cost))?w.cost:""}" placeholder="Cost/sh"
+        title="What you paid per share. Optional — without it the Review tab still shows value and weight, just not gain/loss.">
       <button class="btn sm ghost" data-rm="${esc(w.ticker)}" title="Stop tracking">✕</button>
     </div>`).join("") || `<div class="hint" style="margin:0">No stocks tracked yet.</div>`;
   /* Tagging is a per-holding choice, so it belongs on the holding's own row rather than in a
@@ -2049,6 +2072,24 @@ function renderSettings(){
     }
     if(v) w.exposure = v; else delete w.exposure;
     saveConfig(); renderSettings(); renderExposure();
+  });
+  /* Shares and cost are independent: shares alone gives value, weight and "since review";
+     adding cost switches on gain/loss. Blank means absent, not zero — a missing cost basis is
+     not a cost of nothing, so the Review tab shows an em dash instead of inventing a gain.
+     Clearing shares clears cost with it, since a cost basis for something you don't own is
+     meaningless. The group flips with ownership so the Held / Watch filter stays honest. */
+  $("#wlList").querySelectorAll("[data-sh]").forEach(inp=>inp.onchange=()=>{
+    const w = CFG.watchlist.find(x=>x.ticker===inp.dataset.sh); if(!w) return;
+    const v = parseFloat(inp.value);
+    if(isFinite(v) && v>0){ w.shares=v; w.group="Held"; }
+    else { delete w.shares; delete w.cost; if(w.group==="Held") w.group="Watch"; }
+    saveConfig(); renderAll();
+  });
+  $("#wlList").querySelectorAll("[data-co]").forEach(inp=>inp.onchange=()=>{
+    const w = CFG.watchlist.find(x=>x.ticker===inp.dataset.co); if(!w) return;
+    const v = parseFloat(inp.value);
+    if(isFinite(v) && v>0) w.cost=v; else delete w.cost;
+    saveConfig(); renderAll();
   });
   $("#wlList").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
     const t=b.dataset.rm;
