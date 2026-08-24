@@ -1,0 +1,2425 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Stock Tracker</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --good-text:#006300; --crit-text:#b02f2f;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --bench:#898781;
+  --wash:rgba(11,11,11,0.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --good-text:#0ca30c; --crit-text:#e66767;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --bench:#898781;
+    --wash:rgba(255,255,255,0.06);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --good-text:#0ca30c; --crit-text:#e66767;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --bench:#898781;
+  --wash:rgba(255,255,255,0.06);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--plane); color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1220px;margin:0 auto;padding:24px 20px 64px}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:21px;font-weight:650;margin:0;letter-spacing:-0.01em}
+.sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.spacer{flex:1}
+.hdr-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+button,select,input{font:inherit;color:inherit}
+.btn{
+  background:var(--surface-1); border:1px solid var(--border); color:var(--text-primary);
+  border-radius:8px; padding:6px 11px; cursor:pointer; font-size:13px; line-height:1.3;
+  transition:background .12s;
+}
+.btn:hover{background:var(--wash)}
+.btn.primary{background:var(--s1);border-color:transparent;color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:3px 8px;font-size:12px;border-radius:6px}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:default}
+
+/* ---------- filter row ---------- */
+.filters{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:var(--surface-1);border:1px solid var(--border);border-radius:12px;
+  padding:10px 12px;margin-bottom:10px;
+}
+.seg{display:inline-flex;background:var(--wash);border-radius:8px;padding:2px}
+.seg button{
+  border:0;background:transparent;padding:5px 12px;border-radius:6px;cursor:pointer;
+  font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;
+}
+.seg button[aria-pressed="true"]{background:var(--surface-1);color:var(--text-primary);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+/* The mode switch. Deliberately heavier than .seg: bigger type, a filled active pill, and a
+   sentence beside it saying what the mode is for. It was previously a third identical segmented
+   control in a row of three, which made the biggest decision on the card look like the smallest. */
+.modebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 4px}
+.modeseg{display:inline-flex;gap:4px;background:var(--wash);border-radius:10px;padding:4px}
+.modeseg button{
+  border:0;background:transparent;cursor:pointer;border-radius:7px;
+  padding:7px 20px;font-size:14px;font-weight:620;letter-spacing:.01em;
+  color:var(--text-secondary);transition:background .12s,color .12s;
+}
+.modeseg button:hover{color:var(--text-primary)}
+.modeseg button[aria-pressed="true"]{
+  background:var(--s1);color:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.18);
+}
+.modeseg button[aria-pressed="true"]:hover{color:#fff}
+.modehint{font-size:13px;color:var(--text-secondary);flex:1;min-width:220px}
+.modehint b{color:var(--text-primary);font-weight:620}
+
+.fl-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}
+.chk input{accent-color:var(--s1);width:15px;height:15px;margin:0}
+select.sel{background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:13px}
+
+/* ---------- cards ---------- */
+.card{
+  background:var(--surface-1);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;margin-bottom:16px;
+}
+.card-h{display:flex;align-items:baseline;gap:10px;margin-bottom:2px;flex-wrap:wrap}
+.card-h h2{font-size:15px;font-weight:620;margin:0;letter-spacing:-0.005em}
+.card-h .note{font-size:12.5px;color:var(--muted)}
+.card-h .spacer{flex:1}
+
+/* ---------- alerts ---------- */
+/* Alerts sit at the top of the page, so they get a grid rather than a stack: six full
+   sentences down the left edge pushed everything else below the fold. Each chip carries the
+   ticker, the arrow, the move and the window — enough to decide whether to look — and the full
+   sentence plus the rule live in the title attribute. auto-fill/minmax means six chips land in
+   two rows on a laptop and one on a wide screen, without a hardcoded column count. */
+.alert-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:8px;align-items:start}
+.alert{
+  display:flex;gap:8px;align-items:baseline;
+  border:1px solid var(--border);border-left-width:3px;border-radius:8px;
+  padding:7px 10px;background:var(--plane);font-size:13px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.alert .tk{font-weight:640;flex:none}
+.alert .rds{display:flex;align-items:baseline;gap:10px;margin-left:auto;padding-left:8px}
+.alert .rd{display:inline-flex;align-items:baseline;gap:4px}
+.alert .mv{font-weight:640;font-variant-numeric:tabular-nums}
+.alert .win{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+/* a chip holding two readings needs the room; it spans two grid columns rather than squeezing */
+.alert.multi{grid-column:span 2}
+/* the empty state and the show-more button are single items that shouldn't be squeezed into
+   one grid cell */
+.alert-list > .quiet, .alert-list > .btn{grid-column:1 / -1;justify-self:start}
+.alert.crit{border-left-color:var(--critical)}
+.alert.warn{border-left-color:var(--warning)}
+.alert.good{border-left-color:var(--good)}
+.alert .ic{font-weight:700;font-size:12px;line-height:1.5;flex:none}
+.alert.crit .ic{color:var(--crit-text)} .alert.good .ic{color:var(--good-text)} .alert.warn .ic{color:var(--serious)}
+.alert b{font-weight:640}
+.alert .why{color:var(--muted);font-size:12.3px;display:block;margin-top:1px}
+.quiet{color:var(--muted);font-size:13px;padding:2px 0}
+
+/* ---------- stat tiles ---------- */
+/* The watchlist used to be a wall of stat tiles carrying price, day change and period return —
+   every one of which the metrics table above already shows, in a sortable column, heat-mapped.
+   So it is now purely what it is used for: a picker for the chart. Chips, inline-wrapped, one
+   row or two. The company name and the Fund / converted-currency notes moved into each chip's
+   tooltip, because the name was the one field the tiles held that nothing else on the page did. */
+.picks{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pick{
+  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  border:1px solid var(--border);border-radius:999px;padding:4px 11px 4px 9px;
+  background:var(--plane);font-size:12.5px;font-weight:620;letter-spacing:.01em;
+  transition:background .12s,opacity .12s;white-space:nowrap;
+}
+.pick:hover{background:var(--wash)}
+.pick .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1.5px var(--axis)}
+.pick.on .dot{box-shadow:none}
+.pick.off{opacity:.55;font-weight:560}
+.pick.off:hover{opacity:1}
+.pick.err{opacity:.5;text-decoration:line-through}
+.pick .tag{font-size:9px;padding:0 3px;letter-spacing:.02em}
+
+/* Shared by the metrics ticker cell, the add-a-symbol suggestion list and the settings copy —
+   it lived in the tile block and came out with it once; keep it here, outside anything that
+   might get replaced wholesale again. */
+.tag{font-size:9.5px;font-weight:650;font-style:normal;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:1px 4px;line-height:1.35;flex:none}
+.sugg .tag{font-size:9.5px;color:var(--muted);margin-left:auto}
+.up{color:var(--good-text)} .down{color:var(--crit-text)} .flat{color:var(--muted)}
+
+/* ---------- chart ---------- */
+.chartbox{position:relative;margin-top:10px}
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--grid)}
+.lg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary);cursor:pointer;user-select:none}
+.lg .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.lg.off{opacity:.38}
+.lg .val{font-variant-numeric:tabular-nums;color:var(--text-primary);font-weight:560}
+.tip{
+  position:absolute;pointer-events:none;z-index:20;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:12.5px;
+  box-shadow:0 6px 22px rgba(0,0,0,.13);min-width:158px;opacity:0;transition:opacity .08s;
+}
+.tip .d{color:var(--muted);font-size:11.5px;margin-bottom:5px}
+.tip table{border-collapse:collapse;width:100%}
+.tip td{padding:1.5px 0;font-variant-numeric:tabular-nums}
+.tip td.n{padding-right:12px}
+.tip td.v{text-align:right;font-weight:560}
+.tip .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* ---------- exposure panel ---------- */
+.exp{margin:4px 0 18px}
+.exp-hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.exp-hero .n{font-size:34px;font-weight:640;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.exp-hero .lbl{font-size:13.5px;color:var(--text-secondary)}
+/* one horizontal stacked bar: part-to-whole across the exposure buckets. Segments are
+   separated by a 2px surface gap rather than a border, so nothing gains a dark outline. */
+.exp-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;background:var(--grid);margin:12px 0 0}
+.exp-seg{height:100%;box-shadow:inset 0 0 0 1px var(--surface-1)}
+.exp-seg:first-child{box-shadow:inset -1px 0 0 var(--surface-1)}
+.exp-seg:last-child{box-shadow:inset 1px 0 0 var(--surface-1)}
+/* every segment is labelled here rather than inside the bar — a 1% slice cannot hold text,
+   and the palette carries a sub-3:1 contrast warning that visible labels are the relief for */
+.exp-key{display:flex;flex-wrap:wrap;gap:4px 22px;margin-top:12px}
+.exp-key .row{display:flex;align-items:center;gap:8px;font-size:12.8px;font-variant-numeric:tabular-nums}
+.exp-key .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.exp-key .nm{color:var(--text-secondary)}
+.exp-key .pc{color:var(--text-primary);font-weight:600;min-width:44px;text-align:right}
+.exp-key .dv{color:var(--muted)}
+.exp-flag{
+  display:flex;gap:9px;align-items:flex-start;margin-top:14px;padding:10px 12px;
+  border:1px solid var(--border);border-left:3px solid var(--s4);border-radius:8px;
+  background:var(--plane);font-size:12.8px;color:var(--text-secondary);line-height:1.5;
+}
+.exp-flag .ic{flex:none;font-weight:700;color:var(--text-primary)}
+
+/* ---------- table ---------- */
+.tbl-scroll{overflow-x:auto;margin-top:10px}
+table.data{border-collapse:collapse;width:100%;font-size:12.4px;font-variant-numeric:tabular-nums}
+table.data th{
+  text-align:right;font-weight:600;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.04em;padding:0 7px 7px;border-bottom:1px solid var(--grid);white-space:nowrap;
+}
+table.data th:first-child,table.data td:first-child{text-align:left;padding-left:0}
+table.data th.lft,table.data td.lft{text-align:left}
+table.data th.sortable{cursor:pointer;user-select:none}
+table.data th.sortable:hover{color:var(--text-primary)}
+table.data th .arw{opacity:0;margin-left:3px}
+table.data th.sorted .arw{opacity:1}
+table.data th.sorted{color:var(--text-primary)}
+table.data td{padding:7px 7px;border-bottom:1px solid var(--grid);white-space:nowrap}
+table.data td .asof{
+  font-size:10.5px;font-weight:500;opacity:.62;margin-left:2px;
+  cursor:help;font-variant-numeric:tabular-nums;
+}
+table.data tfoot td{
+  padding:9px 7px;border-bottom:none;border-top:1.5px solid var(--border);
+  white-space:nowrap;font-weight:620;
+}
+table.data tfoot .quiet{font-weight:460}
+#metrics{min-width:1040px}
+table.data tr.dim td:not(:first-child){opacity:.72}
+table.data td.heat{
+  font-weight:560;
+  box-shadow:inset 0 0 0 1.5px var(--surface-1);   /* 2px-ish surface gap, not a border */
+  border-radius:5px;
+}
+table.data tr.dim td.heat{opacity:.85}
+table.data th.heat-col{color:var(--text-secondary)}
+
+.ctlgrp{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.heat-key{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--grid)}
+.heat-key .bar{height:9px;width:190px;border-radius:5px;flex:none;box-shadow:inset 0 0 0 1px var(--border)}
+.heat-key .lbl{font-size:11.5px;color:var(--text-secondary);white-space:nowrap}
+.heat-key .outkey{display:inline-flex;align-items:center;font-size:11.5px;color:var(--text-secondary);white-space:nowrap;margin-left:2px}
+.heat-key .outkey i{width:15px;height:11px;border-radius:3px;display:inline-block;box-shadow:inset 0 0 0 1px var(--border)}
+.heat-key .exp{font-size:11.5px;color:var(--muted);flex:1;min-width:250px;line-height:1.5}
+table.data tr:last-child td{border-bottom:0}
+table.data tr.bench td{color:var(--muted)}
+.tkcell{display:flex;align-items:center;gap:7px;font-weight:620}
+.tkcell .dot{width:9px;height:9px;border-radius:2px;flex:none}
+.pill{
+  display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;
+  border:1px solid transparent;white-space:nowrap;
+}
+.pill.buy{color:var(--good-text);border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.pill.lean-buy{color:var(--good-text);border-color:var(--border);background:color-mix(in srgb,var(--good) 6%,transparent)}
+.pill.hold{color:var(--text-secondary);border-color:var(--border);background:var(--wash)}
+.pill.na{color:var(--muted);border-color:var(--border);background:transparent;border-style:dashed}
+.pill.lean-trim{color:var(--serious);border-color:var(--border);background:color-mix(in srgb,var(--serious) 8%,transparent)}
+.pill.trim{color:var(--crit-text);border-color:var(--critical);background:color-mix(in srgb,var(--critical) 9%,transparent)}
+.help{border-bottom:1px dotted var(--muted);cursor:help}
+
+/* ---------- settings ---------- */
+details.settings{margin-top:4px}
+details.settings > summary{
+  cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;
+  font-size:15px;font-weight:620;padding:2px 0;
+}
+details.settings > summary::-webkit-details-marker{display:none}
+details.settings > summary::before{content:"▸";color:var(--muted);font-size:12px;transition:transform .15s}
+details.settings[open] > summary::before{transform:rotate(90deg)}
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px}
+@media(max-width:820px){.set-grid{grid-template-columns:1fr}}
+.set-sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 9px;font-weight:600}
+.wl-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+.wl-row .dot{width:9px;height:9px;border-radius:2px;flex:none}
+.wl-row .t{font-weight:620;font-size:13px;min-width:56px}
+.wl-row .n{color:var(--muted);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-row select.exp-pick{
+  background:var(--plane);border:1px solid var(--border);border-radius:6px;
+  padding:3px 5px;font-size:11.8px;color:var(--text-secondary);max-width:170px;flex:none;
+}
+.wl-row select.exp-pick.none{color:var(--muted);font-style:italic}
+.addbox{position:relative;margin-top:10px;display:flex;gap:8px}
+.addbox input{
+  flex:1;background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;
+}
+.sugg{
+  position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);
+  z-index:30;max-height:230px;overflow-y:auto;
+}
+.sugg div{padding:7px 11px;cursor:pointer;font-size:13px;display:flex;gap:9px;align-items:baseline}
+.sugg div:hover,.sugg div.hi{background:var(--wash)}
+.sugg b{font-weight:640;min-width:52px}
+.sugg span{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.rule{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0;
+  border-bottom:1px solid var(--grid);font-size:13px;
+}
+.rule.off{opacity:.5}
+.rule select,.rule input[type=number]{
+  background:var(--plane);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12.5px;
+}
+.rule input[type=number]{width:62px;text-align:right;font-variant-numeric:tabular-nums}
+.rule .x{margin-left:auto;color:var(--muted);border:0;background:transparent;cursor:pointer;font-size:15px;padding:0 4px;line-height:1}
+.rule .x:hover{color:var(--crit-text)}
+.hint{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5}
+.hint code{background:var(--wash);padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+.banner{
+  border:1px solid var(--border);border-left:3px solid var(--warning);border-radius:8px;
+  padding:9px 12px;background:var(--surface-1);font-size:13px;margin-bottom:14px;color:var(--text-secondary);
+}
+.err{border-left-color:var(--critical)}
+.loading{color:var(--muted);font-size:13px;padding:26px 0;text-align:center}
+.stale{opacity:.45;transition:opacity .2s}
+footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;border-top:1px solid var(--grid);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Stock Tracker</h1>
+    <div class="sub" id="subline">Loading market data…</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="hdr-actions">
+    <button class="btn" id="themeBtn" title="Toggle light / dark">◐ Theme</button>
+    <button class="btn" id="refreshBtn">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="banners"></div>
+
+<!-- alerts -->
+<div class="card">
+  <div class="card-h">
+    <h2>Alerts</h2>
+    <span class="note" id="alertNote"></span>
+  </div>
+  <div class="alert-list" id="alerts"><div class="quiet">Checking your rules…</div></div>
+</div>
+
+<!-- metrics -->
+<div class="card">
+  <div class="card-h">
+    <h2>Metrics &amp; signals</h2>
+    <span class="note">Signals are mechanical readings of price data — not investment advice.</span>
+    <span class="spacer"></span>
+    <span class="ctlgrp"><span class="fl-label">Heat map</span>
+      <div class="seg" id="heatSeg">
+        <button data-heat="gr"  aria-pressed="true">Green–red</button>
+        <button data-heat="off" aria-pressed="false">Off</button>
+      </div></span>
+    <span class="ctlgrp"><span class="fl-label">Scale</span>
+      <div class="seg" id="scaleSeg">
+        <button data-scale="zero"  aria-pressed="true"  title="0% sits at the neutral midpoint. Green means genuinely up, red means genuinely down.">vs zero</button>
+        <button data-scale="peers" aria-pressed="false" title="Ranks each column best-to-worst by percentile, regardless of sign. Good for finding the laggard when everything is up.">vs peers</button>
+      </div></span>
+  </div>
+  <!-- This switch changes what the table is FOR, not how it looks, so it does not belong in the
+       same visual class as the heat-map and scale switches. Its own row, filled pills, and a
+       line of copy that changes with the mode. -->
+  <div class="modebar">
+    <div class="modeseg" id="mcolSeg" role="tablist" aria-label="Column set">
+      <button data-mcols="monitor" role="tab" aria-pressed="true">Monitor</button>
+      <button data-mcols="review"  role="tab" aria-pressed="false">Review</button>
+    </div>
+    <span class="modehint" id="mcolHint"></span>
+  </div>
+  <div id="exposure" style="display:none"></div>
+  <div class="tbl-scroll"><table class="data" id="metrics"></table></div>
+  <div id="heatLegend"></div>
+  <div class="hint" id="metricsNote" style="display:none"></div>
+</div>
+
+<!-- chart series picker — the watchlist, reduced to the one job it still had that the metrics
+     table above doesn't already do. The Held/Watch filter rides in the header rather than on its
+     own row: it scopes this picker, so it belongs beside the picker's title, and it saves a row
+     of height on a card whose whole point is now to be short. -->
+<div class="card">
+  <div class="card-h">
+    <h2 id="tilesTitle">Chart series</h2>
+    <span class="note" id="tilesNote"></span>
+    <span class="spacer"></span>
+    <div class="seg" id="groupSeg"></div>
+  </div>
+  <div class="picks" id="tiles"></div>
+</div>
+
+<!-- chart controls — directly above the chart. Period lived up in the page header for one
+     revision, on the reasoning that it also scoped the tile wall and the metrics table. That
+     stopped being true once the watchlist became a plain chart selector: the only thing outside
+     this chart that Period still moves is the metrics table's single "vs S&P" column. Putting a
+     chart's own time range at the opposite end of a long page cost more than that footnote was
+     worth. -->
+<div class="filters">
+  <span class="fl-label">Period</span>
+  <div class="seg" id="periodSeg"></div>
+  <span class="fl-label" style="margin-left:6px">View</span>
+  <div class="seg" id="viewSeg">
+    <button data-view="compare" aria-pressed="true">Compare</button>
+    <button data-view="single" aria-pressed="false">Single</button>
+  </div>
+  <select class="sel" id="singleSel" style="display:none"></select>
+  <label class="chk"><input type="checkbox" id="benchChk" checked> Show S&amp;P 500</label>
+  <div class="spacer"></div>
+  <button class="btn sm ghost" id="tableToggle">▤ Table view</button>
+</div>
+
+<!-- chart -->
+<div class="card">
+  <div class="card-h">
+    <h2 id="chartTitle">Performance</h2>
+    <span class="note" id="chartNote"></span>
+  </div>
+  <div class="chartbox" id="chartbox">
+    <div class="loading" id="chartLoading">Loading…</div>
+    <svg class="chart" id="chart" style="display:none"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="tbl-scroll" id="chartTableWrap" style="display:none"></div>
+</div>
+
+<!-- settings -->
+<div class="card">
+  <details class="settings" id="settingsPanel">
+    <summary>Settings — watchlist &amp; alert rules</summary>
+    <div class="set-grid">
+      <div class="set-sec">
+        <h3>Tracked stocks <span id="wlCount" style="text-transform:none;letter-spacing:0"></span></h3>
+        <div id="wlList"></div>
+        <div class="addbox">
+          <input id="addInput" placeholder="Add a ticker or company name…" autocomplete="off">
+          <div class="sugg" id="sugg" style="display:none"></div>
+        </div>
+        <div class="hint">US stocks, ETFs and mutual funds (try <code>SWPPX</code>) — funds are marked
+          <span class="tag">Fund</span> and price once a day at NAV. Non-US listings work too
+          (<code>ASML</code> finds the Amsterdam line) and are marked <span class="tag">EUR→USD</span>:
+          their whole history is converted to dollars at each day's ECB rate, so the numbers include
+          the currency move.
+          Track as many as you like — the chart holds 8 at a time so the colours stay
+          distinguishable, and every stock still appears in the metrics table. Click tiles to swap what's charted. Benchmark:
+          <code id="benchName">SPY</code> <button class="btn sm ghost" id="changeBench">change</button></div>
+      </div>
+
+      <div class="set-sec">
+        <h3>Alert rules</h3>
+        <div id="ruleList"></div>
+        <button class="btn sm" id="addRule" style="margin-top:10px">+ Add rule</button>
+        <div class="hint">
+          Each rule reads as: <em>notify me if [which stock] [moves] [X]% over [N] days.</em>
+          <b>Trading days</b> counts market sessions — a 3-day window is always 3 sessions.
+          <b>Calendar days</b> counts dates, so a 3-day window checked on a Monday looks back to Friday.
+          Use trading days for short windows, calendar for “over a month”.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--grid);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" id="dlConfig">↓ Save config.json</button>
+      <button class="btn" id="loadConfig">↑ Load config.json</button>
+      <input type="file" id="loadConfigFile" accept=".json,application/json" style="display:none">
+      <button class="btn" id="copyConfig">⧉ Copy config</button>
+      <button class="btn" id="markReviewed">✓ Mark reviewed today</button>
+      <button class="btn ghost" id="resetConfig">Reset to defaults</button>
+      <span class="hint" style="margin:0;flex:1;min-width:260px">
+        Changes save in this browser instantly. To let the twice-daily Claude monitor use them,
+        save <code>config.json</code> back into your <b>Stock tracker</b> folder — or just tell Claude the change in chat.
+        <b>Load config.json</b> goes the other way: it pulls in a file Claude has edited, replacing the
+        watchlist and rules held in this browser.
+      </span>
+    </div>
+  </details>
+</div>
+
+<footer>
+  Prices and fundamentals from stockanalysis.com, fetched live by your browser. Daily closes;
+  the latest point is today's quote and updates through the session. Mutual funds are the exception —
+  one NAV a day, published after the close, and no intraday data. Non-US listings are converted
+  to USD at the ECB's daily reference rate (via frankfurter.dev), so their returns include the
+  currency move.
+  Signals are arithmetic on price history (RSI, moving averages, drawdown, relative strength) —
+  they describe what the chart has done, not what it will do, and are not financial advice.
+</footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================ config ============================ */
+const DEFAULT_CONFIG = {
+  version: 1,
+  benchmark: "SPY",
+  benchmarkLabel: "S&P 500",
+  groups: ["Held", "Watch"],
+  exposureOrder: ["S&P 500 index", "Nasdaq 100", "US single stocks", "International equity", "Gold"],
+  reviewDates: [],
+  positionsAsOf: null,
+  positionsSource: null,
+  watchlist: [
+    {ticker:"IVV", name:"iShares Core S&P 500 ETF", group:"Watch", exposure:"S&P 500 index", tracks:"S&P 500"},
+    {ticker:"QQQ", name:"Invesco QQQ Trust Series I", group:"Watch", exposure:"Nasdaq 100", tracks:"Nasdaq 100"},
+    {ticker:"SCHF", name:"Schwab International Equity ETF", group:"Watch", exposure:"International equity", tracks:"FTSE Developed ex-US"},
+    {ticker:"GLD", name:"SPDR Gold Shares", group:"Watch", exposure:"Gold"},
+    {ticker:"AAPL", name:"Apple Inc.", group:"Watch", exposure:"US single stocks"},
+    {ticker:"MSFT", name:"Microsoft Corporation", group:"Watch", exposure:"US single stocks"},
+    {ticker:"NVDA", name:"NVIDIA Corporation", group:"Watch", exposure:"US single stocks"},
+    {ticker:"AMZN", name:"Amazon.com, Inc.", group:"Watch", exposure:"US single stocks"}
+  ],
+  charted: ["IVV", "QQQ", "SCHF", "GLD", "AAPL", "MSFT", "NVDA", "AMZN"],
+  alertRules: [
+    {id:"r1", scope:"*", direction:"drop", pct:5,  days:3,  unit:"trading",  enabled:true},
+    {id:"r2", scope:"*", direction:"any",  pct:10, days:30, unit:"calendar", enabled:true}
+  ],
+  signals: {enabled:true, rsiOversold:30, rsiOverbought:70},
+  display: {heat:"gr", heatScale:"peers", mcols:"monitor"}
+};
+
+const LS_KEY = "stockTracker.config.v1";
+/* Captured before anything writes, so the welcome note shows once and never again. */
+const FIRST_VISIT = (()=>{ try { return !localStorage.getItem(LS_KEY); } catch(e){ return false; } })();
+let storageOK = true;
+try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ storageOK = false; }
+
+function loadConfig(){
+  if(!storageOK) return structuredClone(DEFAULT_CONFIG);
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return structuredClone(DEFAULT_CONFIG);
+    const c = JSON.parse(raw);
+    return migrate(Object.assign(structuredClone(DEFAULT_CONFIG), c));
+  }catch(e){ return structuredClone(DEFAULT_CONFIG); }
+}
+/* The merge above is SHALLOW, so a saved `watchlist` array replaces the default one whole —
+   which means every per-holding field added after a user last saved is simply absent for them.
+   That has now bitten twice: `shares`/`cost` and then `exposure`, the latter showing up as a
+   single "Untagged" bucket covering 100% of the portfolio. So: fill in any key a saved entry is
+   missing from the default entry for the same ticker. Only absent keys — a value the user has
+   deliberately set always wins, including a deliberately blank one. */
+function migrate(c){
+  const byTicker = new Map(DEFAULT_CONFIG.watchlist.map(w=>[w.ticker, w]));
+  (c.watchlist||[]).forEach(w=>{
+    const d = byTicker.get(w.ticker); if(!d) return;
+    for(const k of Object.keys(d)) if(!(k in w)) w[k] = d[k];
+  });
+  if(!Array.isArray(c.exposureOrder) || !c.exposureOrder.length) c.exposureOrder = DEFAULT_CONFIG.exposureOrder;
+  if(!Array.isArray(c.reviewDates)) c.reviewDates = [];
+  return c;
+}
+function saveConfig(){
+  if(!storageOK) return;
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(exportConfig())); }catch(e){}
+}
+/* Tickers are grouped by whatever labels are in CFG.groups — "Held" for anything you own,
+   "Watch" for anything you only follow. The order in CFG.groups wins; anything
+   that turns up only in the watchlist is appended so a hand-typed group still shows. */
+function groupList(){
+  const seen=[], have=new Set();
+  (CFG.groups||[]).forEach(g=>{ if(g && !have.has(g)){ have.add(g); seen.push(g); } });
+  (CFG.watchlist||[]).forEach(w=>{ const g=w.group; if(g && !have.has(g)){ have.add(g); seen.push(g); } });
+  return seen.filter(g => (CFG.watchlist||[]).some(w=>w.group===g));
+}
+function groupOf(t){
+  const w=(CFG.watchlist||[]).find(x=>x.ticker===t);
+  return (w && w.group) || "";
+}
+function visibleWatchlist(){
+  if(STATE.group==="All") return CFG.watchlist;
+  return CFG.watchlist.filter(w=>w.group===STATE.group);
+}
+
+function exportConfig(){
+  return {
+    version:1,
+    updated:new Date().toISOString().slice(0,10),
+    benchmark:CFG.benchmark,
+    benchmarkLabel:CFG.benchmarkLabel,
+    groups:groupList(),
+    positionsAsOf:CFG.positionsAsOf||null,
+    positionsSource:CFG.positionsSource||null,
+    /* apiId / kind / leveraged must survive a save — apiId is the only way back to a
+       mutual fund's data, and a hand-set `leveraged` is a deliberate override. */
+    watchlist:CFG.watchlist.map(w=>{
+      const o={ticker:w.ticker,name:w.name||""};
+      if(w.group) o.group=w.group;
+      if(w.exposure) o.exposure=w.exposure;
+      if(w.tracks) o.tracks=w.tracks;
+      /* a position is data, not a preference — losing it silently would empty the portfolio row */
+      if(isFinite(w.shares)) o.shares=+w.shares;
+      if("cost" in w) o.cost = isFinite(w.cost) ? +w.cost : null;
+      if(w.apiId) o.apiId=w.apiId;
+      if(w.kind)  o.kind=w.kind;
+      if(w.currency && w.currency!=="USD") o.currency=w.currency;
+      if(w.exchange) o.exchange=w.exchange;
+      if(typeof w.leveraged==="boolean") o.leveraged=w.leveraged;
+      return o;
+    }),
+    charted:[...STATE.slots.keys()],
+    alertRules:CFG.alertRules.map(r=>({id:r.id,scope:r.scope,direction:r.direction,pct:+r.pct,days:+r.days,unit:r.unit||"trading",enabled:!!r.enabled})),
+    signals:CFG.signals,
+    exposureOrder:CFG.exposureOrder||null,
+    reviewDates:CFG.reviewDates||[],
+    display:{heat:STATE.heat, heatScale:STATE.heatScale, mcols:STATE.mcols}
+  };
+}
+let CFG = loadConfig();
+
+/* ============================ constants ============================ */
+const PERIODS = [
+  {key:"1D",  label:"1D",  days:1},
+  {key:"1M",  label:"1M",  days:30},
+  {key:"3M",  label:"3M",  days:91},
+  {key:"6M",  label:"6M",  days:182},
+  {key:"12M", label:"12M", days:365}
+];
+const SERIES_VARS = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+const API = "https://stockanalysis.com/api";
+
+/* stockanalysis carries no exchange rates, so a non-US listing is converted with the ECB's
+   daily reference rates (frankfurter.dev, a thin free wrapper over the ECB's own series —
+   no key, CORS-open). One fixing per weekday at 16:00 CET; a Paris close is 17:35 CET, so a
+   converted close uses that afternoon's fixing rather than a same-instant rate. Immaterial
+   here, and the alternative — the OTC ADR — is far worse: NPACY printed 9 trades in the whole
+   of the last year, in lots of a few hundred shares, one of them a -12% "day". */
+const FX_API = "https://api.frankfurter.dev/v1";
+
+/* Exchange prefix -> the currency that exchange quotes in. Only exchanges whose quote unit is
+   unambiguous are listed, because the API never states the currency. LON is deliberately
+   absent: the LSE quotes some lines in pence and some in pounds, and nothing in the response
+   says which, so a "conversion" there would be a coin flip between right and 100x wrong. */
+const EXCH_CCY = {
+  mutf:"USD", otc:"USD",
+  epa:"EUR", ams:"EUR", bru:"EUR", lis:"EUR", etr:"EUR", fra:"EUR", ber:"EUR", mun:"EUR",
+  stu:"EUR", ham:"EUR", dus:"EUR", bit:"EUR", mil:"EUR", mad:"EUR", bme:"EUR", vie:"EUR",
+  hel:"EUR", dub:"EUR", ath:"EUR", lju:"EUR",
+  swx:"CHF", vtx:"CHF", ebs:"CHF",
+  tsx:"CAD", tsxv:"CAD", cve:"CAD", neo:"CAD",
+  asx:"AUD", nze:"NZD", tyo:"JPY", jpx:"JPY",
+  sto:"SEK", osl:"NOK", cph:"DKK", ist:"TRY", jse:"ZAR", nse:"INR", bse:"INR"
+};
+
+const MAX_CHARTED = 8;   // 8 categorical hues exist; a 9th would be indistinguishable
+const MAX_WATCH   = 30;
+
+const STATE = {
+  period:"3M",
+  view:"compare",
+  group:"All",       // tile-wall filter; the chart is driven by `slots`, not by this
+  mcols:"monitor",   // which column set the metrics table shows: "monitor" | "review"
+  single:null,
+  showBench:true,
+  tableView:false,
+  slots:new Map(),  // ticker -> colour slot 0..7, held for as long as it's on the chart
+  sort:{col:null, dir:-1},
+  heat:"gr",          // "gr" | "off"
+  heatScale:"zero",   // "zero" | "peers"
+  data:{},          // ticker -> {bars, quote, err}
+  fx:{},            // currency code -> {rates:[[date,rate]…], err, fetchedDay}
+  loading:false,
+  lastFetch:null
+};
+
+/* A ticker keeps its colour slot for as long as it stays on the chart, so removing
+   one series never repaints the survivors. */
+function chartOn(t){
+  if(STATE.slots.has(t)) return true;
+  if(STATE.slots.size>=MAX_CHARTED) return false;
+  const used=new Set(STATE.slots.values());
+  for(let i=0;i<MAX_CHARTED;i++) if(!used.has(i)){ STATE.slots.set(t,i); return true; }
+  return false;
+}
+function chartOff(t){ STATE.slots.delete(t); }
+function isCharted(t){ return STATE.slots.has(t); }
+
+/* ============================ helpers ============================ */
+const $ = s => document.querySelector(s);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtPct = v => (v==null||!isFinite(v)) ? "–" : (v>0?"+":"") + v.toFixed(2) + "%";
+const fmtPx  = v => (v==null||!isFinite(v)) ? "–" : v>=1000 ? v.toLocaleString(undefined,{maximumFractionDigits:0})
+                    : v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const cls = v => v==null||!isFinite(v) ? "flat" : v>0.0001 ? "up" : v<-0.0001 ? "down" : "flat";
+const tickers = () => CFG.watchlist.map(w=>w.ticker);
+
+/* ---- symbol routing ---------------------------------------------------------
+   Plain US stocks and ETFs live at /api/symbol/s/<ticker>/… . Mutual funds live
+   behind stockanalysis' own quote route, /api/symbol/q/<UID>/… , where the UID
+   looks like "MUTF-SWPPX" — the ticker alone gets a 400 there. A watchlist entry
+   carries that UID in `apiId` when it needs the /q/ route, and `kind:"fund"` when
+   it prices once a day at NAV instead of trading continuously. */
+const wlEntry = t => CFG.watchlist.find(w=>w.ticker===t) || null;
+function apiRefFor(t){
+  const w = wlEntry(t);
+  return (w && w.apiId) ? `q/${encodeURIComponent(w.apiId)}`
+                        : `s/${encodeURIComponent(String(t).toLowerCase())}`;
+}
+const isFund       = t => { const w = wlEntry(t); return !!(w && w.kind==="fund"); };
+const trackingFunds = () => CFG.watchlist.some(w=>w.kind==="fund");
+
+/* A holding quoted in something other than dollars carries `currency` (and `exchange`, for
+   the label). Its whole series is converted to USD before anything is measured, so every
+   percentage on the page — and every alert — is the return a dollar holder actually got,
+   currency move included. */
+const ccyOf       = t => { const w = wlEntry(t); return (w && w.currency) || "USD"; };
+const isConverted = t => ccyOf(t) !== "USD";
+const exchOf      = t => { const w = wlEntry(t); return (w && w.exchange) || ""; };
+const fxCodes     = () => [...new Set(CFG.watchlist.map(w=>w.currency).filter(c=>c && c!=="USD"))];
+const isoDay      = d => d.toISOString().slice(0,10);
+
+async function loadFx(){
+  const codes = fxCodes();
+  if(!codes.length) return;
+  const today = isoDay(new Date());
+  const from  = isoDay(new Date(Date.now() - 430*DAY));   // 1Y of bars plus slack
+  await Promise.all(codes.map(async c=>{
+    const held = STATE.fx[c];
+    if(held && held.rates.length && held.fetchedDay===today) return;   // already current
+    try{
+      const r = await fetch(`${FX_API}/${from}..${today}?base=${encodeURIComponent(c)}&symbols=USD`);
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      const rates = Object.entries(j.rates||{})
+        .map(([d,v])=>[d, +(v&&v.USD)])
+        .filter(x=>isFinite(x[1]))
+        .sort((a,b)=> a[0]<b[0] ? -1 : 1);
+      if(!rates.length) throw new Error("no rates returned");
+      STATE.fx[c] = {rates, err:null, fetchedDay:today};
+    }catch(e){
+      // keep whatever we already had rather than blanking a working series on one bad refresh
+      if(!(held && held.rates.length)) STATE.fx[c] = {rates:[], err:String(e.message||e), fetchedDay:null};
+    }
+  }));
+}
+/* The ECB fixes once per weekday, so a local holiday — or a rate not yet published today —
+   takes the most recent earlier fixing rather than dropping the day. */
+function fxRate(code, date){
+  const f = STATE.fx[code];
+  if(!f || !f.rates.length || date < f.rates[0][0]) return null;
+  const a = f.rates; let lo=0, hi=a.length-1, best=null;
+  while(lo<=hi){ const mid=(lo+hi)>>1; if(a[mid][0] <= date){ best=a[mid][1]; lo=mid+1; } else hi=mid-1; }
+  return best;
+}
+function colorFor(t){
+  if(t===CFG.benchmark && !STATE.slots.has(t)) return cssVar("--bench");
+  const s = STATE.slots.get(t);
+  return s==null ? cssVar("--muted") : cssVar(SERIES_VARS[s]);
+}
+function nameFor(t){
+  if(t===CFG.benchmark) return CFG.benchmarkLabel||CFG.benchmark;
+  const w = CFG.watchlist.find(w=>w.ticker===t);
+  return (w && w.name) || t;
+}
+const parseD = s => { const [y,m,d]=s.split("-").map(Number); return Date.UTC(y,m-1,d); };
+const DAY = 86400000;
+
+/* ============================ data ============================ */
+async function fetchOne(sym, opts){
+  const o    = opts || {};
+  const ref  = o.ref  || apiRefFor(sym);
+  const fund = ("fund" in o) ? !!o.fund : isFund(sym);
+  const ccy  = o.currency || ccyOf(sym);
+  const [hRes,qRes] = await Promise.all([
+    fetch(`${API}/symbol/${ref}/history?range=1Y&period=Daily`),
+    fetch(`${API}/quotes/${ref}`)
+  ]);
+  if(!hRes.ok) throw new Error(`history HTTP ${hRes.status}`);
+  const hj = await hRes.json();
+  let rows = Array.isArray(hj.data) ? hj.data : (hj.data && hj.data.data) || [];
+  if(!rows.length) throw new Error("no history returned");
+
+  let bars = rows
+    .filter(r=>r && r.t && isFinite(r.c))
+    .map(r=>({t:r.t, o:+r.o, h:+r.h, l:+r.l, c:+r.c, v:+r.v}))
+    .sort((a,b)=> a.t < b.t ? -1 : 1);
+
+  let quote = null;
+  if(qRes.ok){
+    try{ const qj = await qRes.json(); quote = qj && qj.data ? qj.data : null; }catch(e){}
+  }
+  /* Splice today's live quote onto the end of the daily series.
+     Not for a mutual fund: it publishes one NAV per day after the close, and until
+     then its quote carries TODAY's date with YESTERDAY's NAV. Splicing that on would
+     invent a flat bar for today and report yesterday's move as "today's". */
+  if(!fund && quote && isFinite(quote.p) && quote.td){
+    const last = bars[bars.length-1];
+    if(last.t === quote.td) last.c = +quote.p;
+    else if(quote.td > last.t) bars.push({t:quote.td, o:+quote.o||+quote.p, h:+quote.h||+quote.p, l:+quote.l||+quote.p, c:+quote.p, v:+quote.v||0});
+  }
+  /* Convert to USD day by day, not at one rate for the whole series — using today's rate on a
+     year-old price would fold a year of currency drift into the return. */
+  if(ccy !== "USD"){
+    const f = STATE.fx[ccy];
+    if(!f || !f.rates.length) throw new Error(`no ${ccy}→USD rate available${f && f.err ? ` (${f.err})` : ""}`);
+    const conv = [];
+    for(const b of bars){
+      const r = fxRate(ccy, b.t);
+      if(r==null) continue;
+      conv.push({t:b.t, o:b.o*r, h:b.h*r, l:b.l*r, c:b.c*r, v:b.v, fx:r});
+    }
+    if(conv.length < 2) throw new Error(`${ccy}→USD rates don't cover this history`);
+    bars = conv;
+  }
+  return {bars, quote, fund, currency:ccy};
+}
+
+async function loadAll(){
+  STATE.loading = true;
+  await loadFx();          // rates first: a converted symbol can't be read without them
+  const want = [...new Set([...tickers(), CFG.benchmark])];
+  $("#subline").textContent = "Fetching " + want.length + " symbols…";
+  document.querySelectorAll(".card").forEach(c=>c.classList.add("stale"));
+
+  // 6 at a time — a long watchlist firing 30+ requests at once gets throttled
+  const next = {};
+  let done = 0;
+  const queue = want.slice();
+  await Promise.all(Array.from({length:Math.min(6,queue.length)}, async ()=>{
+    while(queue.length){
+      const sym = queue.shift();
+      try{ next[sym] = await fetchOne(sym); }
+      catch(e){ next[sym] = {err:String(e.message||e), bars:[], quote:null}; }
+      $("#subline").textContent = `Fetching ${++done}/${want.length} symbols…`;
+    }
+  }));
+  STATE.data = next;
+  STATE.loading = false;
+  STATE.lastFetch = new Date();
+  document.querySelectorAll(".card").forEach(c=>c.classList.remove("stale"));
+  renderAll();
+}
+
+/* ============================ analytics ============================ */
+function periodDays(){ return (PERIODS.find(p=>p.key===STATE.period)||PERIODS[2]).days; }
+
+// last bar on or before (latest date - n calendar days)
+function baselineIndex(bars, n){
+  if(!bars.length) return 0;
+  const cutoff = parseD(bars[bars.length-1].t) - n*DAY;
+  let idx = 0;
+  for(let i=bars.length-1;i>=0;i--){
+    if(parseD(bars[i].t) <= cutoff){ idx = i; break; }
+  }
+  return idx;
+}
+function sliceFor(bars, n){
+  const i = baselineIndex(bars, n);
+  return bars.slice(i);
+}
+function changeOver(bars, n){
+  if(bars.length<2) return null;
+  const i = baselineIndex(bars,n);
+  const a = bars[i].c, b = bars[bars.length-1].c;
+  if(!isFinite(a)||!a) return null;
+  return (b-a)/a*100;
+}
+/* Rules can measure in trading sessions or calendar days. It matters: on a Monday,
+   "3 calendar days ago" is Friday — a one-session window, not three. */
+function changeOverRule(bars, n, unit){
+  if(bars.length<2) return null;
+  const i = (unit==="calendar") ? baselineIndex(bars,n) : Math.max(0, bars.length-1-n);
+  const a = bars[i].c, b = bars[bars.length-1].c;
+  if(!isFinite(a)||!a) return null;
+  return (b-a)/a*100;
+}
+function sma(bars,n){
+  if(bars.length<n) return null;
+  let s=0; for(let i=bars.length-n;i<bars.length;i++) s+=bars[i].c;
+  return s/n;
+}
+/* Wilder-smoothed RSI — the standard definition. A plain n-day average of gains and
+   losses is a different (and much noisier) number: on AAPL it read 22.0 where the
+   correct value was 43.4. Verified against stockanalysis' own published RSI. */
+function rsi(bars,n=14){
+  if(bars.length < n+1) return null;
+  let g=0,l=0;
+  for(let i=1;i<=n;i++){ const d=bars[i].c-bars[i-1].c; if(d>=0) g+=d; else l-=d; }
+  g/=n; l/=n;
+  for(let i=n+1;i<bars.length;i++){
+    const d=bars[i].c-bars[i-1].c;
+    g = (g*(n-1) + (d>0? d:0))/n;
+    l = (l*(n-1) + (d<0?-d:0))/n;
+  }
+  if(l===0) return 100;
+  return 100 - 100/(1+g/l);
+}
+function annVol(bars,n=60){
+  if(bars.length < n+1) return null;
+  const r=[];
+  for(let i=bars.length-n;i<bars.length;i++) r.push(Math.log(bars[i].c/bars[i-1].c));
+  const m = r.reduce((a,b)=>a+b,0)/r.length;
+  const v = r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1);
+  return Math.sqrt(v)*Math.sqrt(252)*100;
+}
+function pos52(q,bars){
+  let hi = q && isFinite(q.h52) ? +q.h52 : Math.max(...bars.map(b=>b.h||b.c));
+  let lo = q && isFinite(q.l52) ? +q.l52 : Math.min(...bars.map(b=>b.l||b.c));
+  const px = bars[bars.length-1].c;
+  if(!isFinite(hi)||!isFinite(lo)||hi<=lo) return null;
+  return (px-lo)/(hi-lo)*100;
+}
+
+/* ---------- is a row's "1D" the same day as everyone else's? ----------
+   An ETF's series carries today's live quote; a mutual fund's stops at the last published NAV,
+   which during market hours is YESTERDAY. So the 1D column can show two rows of the same index
+   1.2pp apart — measured 2026-08-21: IVV +0.32% for Aug 20→21 against SWPPX -0.85% for
+   Aug 19→20. Neither number is wrong; they cover different days. Rather than hide that, the
+   cell says which day it covers, and only when the row is actually behind the newest bar on the
+   page — so once NAVs publish and everything lines up, the annotation disappears by itself. */
+function latestBarDay(){
+  let newest = null;
+  for(const t of Object.keys(STATE.data)){
+    const d = STATE.data[t];
+    if(!d || d.err || !d.bars || !d.bars.length) continue;
+    const last = d.bars[d.bars.length-1].t;
+    if(!newest || last > newest) newest = last;
+  }
+  return newest;
+}
+const shortDay = iso => {
+  const [y,mo,dd] = String(iso).split("-").map(Number);
+  return isFinite(mo) ? `${mo}/${dd}` : String(iso);
+};
+
+function metricsFor(t){
+  const d = STATE.data[t];
+  if(!d || d.err || !d.bars || d.bars.length<2) return null;
+  const bars=d.bars, q=d.quote;
+  const px = bars[bars.length-1].c;
+  const prev = bars.length>1 ? bars[bars.length-2].c : px;
+  /* A fund's quote reports the last published NAV move under today's date, so for
+     funds the change comes from the NAV series itself — the same number, honestly dated.
+     A converted symbol's quote is in its own currency: q.cp is the local-currency move and
+     q.h52/q.l52 are local-currency levels, so both come from the converted series instead. */
+  const fund = isFund(t), conv = isConverted(t);
+  const day = (q && isFinite(q.cp) && !fund && !conv) ? +q.cp : (px-prev)/prev*100;
+  const m50 = sma(bars,50), m200 = sma(bars,200);
+  return {
+    ticker:t, px, day, fund, asOf: bars[bars.length-1].t,
+    conv, ccy: ccyOf(t), exch: exchOf(t), fx: bars[bars.length-1].fx || null,
+    p1m: changeOver(bars,30), p3m: changeOver(bars,91),
+    p6m: changeOver(bars,182), p12m: changeOver(bars,365),
+    period: changeOver(bars, periodDays()),
+    rsi: rsi(bars,14), m50, m200,
+    v50: m50?((px-m50)/m50*100):null,
+    v200: m200?((px-m200)/m200*100):null,
+    pos: pos52(conv?null:q, bars), vol: annVol(bars),
+    dd: (function(){ const hi=Math.max(...bars.slice(-252).map(b=>b.c)); return (px-hi)/hi*100; })(),
+    quote:q
+  };
+}
+
+/* Leveraged and inverse ETFs are rebalanced daily, so volatility decay drags them down
+   regardless of where the underlying index goes. That breaks every mean-reversion reading:
+   SQQQ sits at the bottom of its 52-week range permanently, which this model would read as
+   "cheap" forever. They get no signal at all rather than a misleading one.
+   Override per holding with "leveraged": true / false in config.json. */
+const LEVERAGED_RE = /(\bultra\b|ultrapro|ultrashort|\binverse\b|\bleveraged\b|\b[-+]?[1-9](\.\d)?x\b|\bdaily\b[^,]*\b(bull|bear)\b|^proshares\s+short\b)/i;
+function isLeveraged(ticker){
+  const w = CFG.watchlist.find(w=>w.ticker===ticker);
+  if(w && typeof w.leveraged === "boolean") return w.leveraged;
+  return LEVERAGED_RE.test(`${ticker} ${(w&&w.name)||""}`.trim());
+}
+
+function signalFor(m, benchPeriod){
+  if(!m) return null;
+  if(isLeveraged(m.ticker)) return null;
+  let s=0; const why=[];
+
+  /* Mean-reversion readings ("it has fallen, so it is cheap") only count while the long-term
+     trend is intact. Summing them with trend-following readings is what let SQQQ and TQQQ —
+     exact inverses of each other — both score "Lean buy": one for rising, one for falling.
+     Bearish readings still count in every regime; only the bullish dip-buying is gated. */
+  const trendUp = (m.m50!=null && m.m200!=null) ? m.m50 > m.m200 : null;
+  const dipOK   = trendUp !== false;
+  const gated   = [];
+  if(m.rsi!=null){
+    if(m.rsi < CFG.signals.rsiOversold){
+      if(dipOK){ s+=2; why.push(`RSI ${m.rsi.toFixed(0)} — oversold`); }
+      else gated.push(`RSI ${m.rsi.toFixed(0)} is oversold`);
+    }
+    else if(m.rsi < 40){
+      if(dipOK){ s+=1; why.push(`RSI ${m.rsi.toFixed(0)} — soft`); }
+      else gated.push(`RSI ${m.rsi.toFixed(0)} is soft`);
+    }
+    else if(m.rsi > CFG.signals.rsiOverbought){ s-=2; why.push(`RSI ${m.rsi.toFixed(0)} — overbought`); }
+    else if(m.rsi > 60){ s-=1; why.push(`RSI ${m.rsi.toFixed(0)} — warm`); }
+  }
+  if(m.m50!=null && m.m200!=null){
+    if(m.m50 > m.m200){ s+=1; why.push("50-day above 200-day (uptrend)"); }
+    else { s-=1; why.push("50-day below 200-day (downtrend)"); }
+  }
+  if(m.v50!=null){
+    if(m.v50 < -8){
+      if(dipOK){ s+=1; why.push(`${m.v50.toFixed(1)}% below its 50-day`); }
+      else gated.push(`it is ${Math.abs(m.v50).toFixed(1)}% below its 50-day`);
+    }
+    else if(m.v50 > 12){ s-=1; why.push(`${m.v50.toFixed(1)}% above its 50-day — extended`); }
+  }
+  if(m.pos!=null){
+    if(m.pos < 20){
+      if(dipOK){ s+=1; why.push(`near the bottom of its 52-week range (${m.pos.toFixed(0)}%)`); }
+      else gated.push(`it sits at ${m.pos.toFixed(0)}% of its 52-week range`);
+    }
+    else if(m.pos > 92){ s-=1; why.push(`near its 52-week high (${m.pos.toFixed(0)}%)`); }
+  }
+  if(m.p3m!=null){
+    if(m.p3m < -18){
+      if(dipOK){ s+=1; why.push(`down ${Math.abs(m.p3m).toFixed(0)}% over 3 months`); }
+      else gated.push(`it is down ${Math.abs(m.p3m).toFixed(0)}% over 3 months`);
+    }
+    else if(m.p3m > 28){ s-=1; why.push(`up ${m.p3m.toFixed(0)}% over 3 months — stretched`); }
+  }
+  if(benchPeriod!=null && m.period!=null){
+    const rel = m.period - benchPeriod;
+    if(rel < -8) why.push(`lagging the S&P by ${Math.abs(rel).toFixed(1)} pts`);
+    else if(rel > 8) why.push(`beating the S&P by ${rel.toFixed(1)} pts`);
+  }
+  if(gated.length) why.push(`Dip-buying signals ignored while the 50-day is below the 200-day (${gated.join("; ")})`);
+  let label,klass;
+  if(s>=3){label="Accumulate";klass="buy";}
+  else if(s>=1){label="Lean buy";klass="lean-buy";}
+  else if(s>=-1){label="Hold";klass="hold";}
+  else if(s>=-3){label="Lean trim";klass="lean-trim";}
+  else {label="Trim";klass="trim";}
+  return {score:s,label,klass,why};
+}
+
+/* ---- alert rule evaluation ---- */
+function evalRules(){
+  const out=[];
+  for(const r of CFG.alertRules){
+    if(!r.enabled) continue;
+    const scope = r.scope==="*" ? tickers() : [r.scope];
+    for(const t of scope){
+      const d = STATE.data[t];
+      if(!d || d.err || !d.bars || d.bars.length<2) continue;
+      const ch = changeOverRule(d.bars, +r.days, r.unit||"trading");
+      if(ch==null) continue;
+      const dirOK = r.direction==="drop" ? ch <= -Math.abs(r.pct)
+                  : r.direction==="rise" ? ch >=  Math.abs(r.pct)
+                  : Math.abs(ch) >= Math.abs(r.pct);
+      if(dirOK) out.push({ticker:t, rule:r, change:ch});
+    }
+  }
+  return out;
+}
+
+/* ============================ chart ============================ */
+function chartedList(){
+  return tickers().filter(isCharted).sort((a,b)=>STATE.slots.get(a)-STATE.slots.get(b));
+}
+function seriesForChart(){
+  const shown = (STATE.view==="single" && STATE.single) ? [STATE.single] : chartedList();
+  const out = shown.map(t=>({t, color: isCharted(t) ? colorFor(t) : cssVar("--s1"), bench:false}));
+  if(STATE.showBench && CFG.benchmark && !shown.includes(CFG.benchmark))
+    out.push({t:CFG.benchmark, color:cssVar("--bench"), bench:true});
+  return out.filter(s=>{ const d=STATE.data[s.t]; return d && !d.err && d.bars && d.bars.length>1; });
+}
+
+function niceTicks(min,max,count){
+  if(!isFinite(min)||!isFinite(max)) return [0];
+  if(min===max){ min-=1; max+=1; }
+  const raw=(max-min)/count, mag=Math.pow(10,Math.floor(Math.log10(raw))), norm=raw/mag;
+  const step = (norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(min/step)*step; v<=max+step*1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+function renderChart(){
+  const box=$("#chartbox"), svg=$("#chart"), tip=$("#tip");
+  const series = seriesForChart();
+  $("#chartLoading").style.display="none";
+  svg.style.display="block";
+
+  const isBar = STATE.period==="1D";
+  const W = Math.max(340, box.clientWidth||900);
+
+  if(!series.length){
+    svg.setAttribute("viewBox",`0 0 ${W} 120`); svg.setAttribute("height",120);
+    svg.innerHTML = `<text x="${W/2}" y="62" text-anchor="middle" fill="${cssVar('--muted')}" font-size="13" font-family="system-ui">Nothing to chart — add a ticker in Settings.</text>`;
+    $("#legend").innerHTML=""; return;
+  }
+
+  if(isBar) renderBars(svg,W,series);
+  else renderLines(svg,W,series,tip,box);
+
+  renderLegend(series);
+  renderChartTable(series,isBar);
+}
+
+/* ---- 1D: one number per entity → horizontal bars, not a line ---- */
+function renderBars(svg,W,series){
+  const rows = series.map(s=>{
+    // one source of truth for the day move, so funds read their NAV change here too
+    const m = metricsFor(s.t);
+    let day = m ? m.day : null;
+    if(day==null){
+      const d=STATE.data[s.t];
+      if(d && d.quote && isFinite(d.quote.cp)) day=+d.quote.cp;
+      else if(d && d.bars.length>1){ const b=d.bars; day=(b[b.length-1].c-b[b.length-2].c)/b[b.length-2].c*100; }
+    }
+    return {...s, val:day, fund:isFund(s.t)};
+  }).filter(r=>r.val!=null);
+
+  const rowH=34, padT=14, padB=30, padL=76, padR=26;
+  const H = padT + rows.length*rowH + padB;
+  const vals = rows.map(r=>r.val);
+  let lo=Math.min(0,...vals), hi=Math.max(0,...vals);
+  const pad=Math.max(0.35,(hi-lo)*0.18); lo-=pad; hi+=pad;
+  const plotW = W-padL-padR;
+  const x = v => padL + (v-lo)/(hi-lo)*plotW;
+  const ticks = niceTicks(lo,hi,5);
+
+  let g="";
+  for(const tk of ticks){
+    const xx=x(tk);
+    g+=`<line x1="${xx}" y1="${padT}" x2="${xx}" y2="${padT+rows.length*rowH}" stroke="${tk===0?cssVar('--axis'):cssVar('--grid')}" stroke-width="1"/>`;
+    g+=`<text x="${xx}" y="${padT+rows.length*rowH+16}" text-anchor="middle" font-size="10.5" fill="${cssVar('--muted')}" font-family="system-ui" style="font-variant-numeric:tabular-nums">${tk>0?"+":""}${tk.toFixed(1)}%</text>`;
+  }
+  const zero=x(0);
+  rows.forEach((r,i)=>{
+    const cy=padT+i*rowH+rowH/2, bh=11;
+    const xv=x(r.val);
+    const bx=Math.min(zero,xv), bw=Math.max(2,Math.abs(xv-zero));
+    const col = r.val>=0 ? cssVar("--good") : cssVar("--critical");
+    const rad = 4;
+    // rounded only on the data end
+    const path = r.val>=0
+      ? `M${bx},${cy-bh/2} H${bx+bw-rad} a${rad},${rad} 0 0 1 ${rad},${rad} v${bh-2*rad} a${rad},${rad} 0 0 1 ${-rad},${rad} H${bx} Z`
+      : `M${bx+bw},${cy-bh/2} H${bx+rad} a${rad},${rad} 0 0 0 ${-rad},${rad} v${bh-2*rad} a${rad},${rad} 0 0 0 ${rad},${rad} H${bx+bw} Z`;
+    g+=`<path d="${path}" fill="${col}"/>`;
+    g+=`<text x="${padL-12}" y="${cy+4}" text-anchor="end" font-size="12" font-weight="620" fill="${r.bench?cssVar('--muted'):cssVar('--text-primary')}" font-family="system-ui">${esc(r.t)}</text>`;
+    const lx = r.val>=0 ? xv+8 : xv-8;
+    g+=`<text x="${lx}" y="${cy+4}" text-anchor="${r.val>=0?'start':'end'}" font-size="11.5" font-weight="600" fill="${r.val>=0?cssVar('--good-text'):cssVar('--crit-text')}" font-family="system-ui" style="font-variant-numeric:tabular-nums">${fmtPct(r.val)}</text>`;
+    g+=`<rect x="0" y="${padT+i*rowH}" width="${W}" height="${rowH}" fill="transparent"><title>${esc(r.t)} — ${esc(nameFor(r.t))}: ${fmtPct(r.val)} ${r.fund?"at the latest NAV":"today"}</title></rect>`;
+  });
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.setAttribute("height",H);
+  svg.innerHTML=g;
+}
+
+/* ---- 1M+ : lines ---- */
+function renderLines(svg,W,series,tip,box){
+  const n = periodDays();
+  // Absolute prices only when charting ONE stock with no benchmark. The moment a second
+  // series joins, index everything to 0% — two price levels on one axis is a lie.
+  const singleMode = STATE.view==="single" && STATE.single;
+  const normalized = !singleMode || series.length > 1;
+
+  const prepped = series.map(s=>{
+    const bars = sliceFor(STATE.data[s.t].bars, n);
+    const base = bars[0].c;
+    const pts = bars.map(b=>({x:parseD(b.t), y: normalized ? (b.c-base)/base*100 : b.c, c:b.c, t:b.t}));
+    return {...s, pts, last: pts[pts.length-1]};
+  }).filter(s=>s.pts.length>1);
+  if(!prepped.length){ svg.innerHTML=""; return; }
+
+  const H=352, padT=16, padB=30, padL=62, padR=68;
+  const xs = prepped.flatMap(s=>[s.pts[0].x, s.pts[s.pts.length-1].x]);
+  const xMin=Math.min(...xs), xMax=Math.max(...xs);
+  let yMin=Infinity,yMax=-Infinity;
+  for(const s of prepped) for(const p of s.pts){ if(p.y<yMin)yMin=p.y; if(p.y>yMax)yMax=p.y; }
+  const ypad=Math.max((yMax-yMin)*0.10, Math.abs(yMax)*0.01, 0.5);
+  yMin-=ypad; yMax+=ypad;
+
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const X = v => padL + (v-xMin)/((xMax-xMin)||1)*plotW;
+  const Y = v => padT + (yMax-v)/((yMax-yMin)||1)*plotH;
+
+  const yTicks = niceTicks(yMin,yMax,5);
+  let g="";
+  for(const t of yTicks){
+    const yy=Y(t);
+    const isZero = normalized && Math.abs(t)<1e-9;
+    g+=`<line x1="${padL}" y1="${yy}" x2="${padL+plotW}" y2="${yy}" stroke="${isZero?cssVar('--axis'):cssVar('--grid')}" stroke-width="1"/>`;
+    g+=`<text x="${padL-10}" y="${yy+3.5}" text-anchor="end" font-size="10.5" fill="${cssVar('--muted')}" font-family="system-ui" style="font-variant-numeric:tabular-nums">${normalized?((t>0?"+":"")+t.toFixed(1)+"%"):"$"+fmtPx(t)}</text>`;
+  }
+  // x ticks
+  const nT=Math.max(3,Math.min(7,Math.floor(plotW/120)));
+  for(let i=0;i<=nT;i++){
+    const xv=xMin+(xMax-xMin)*i/nT, xx=X(xv), d=new Date(xv);
+    const lbl = n<=182 ? d.toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})
+                       : d.toLocaleDateString(undefined,{month:"short",year:"numeric",timeZone:"UTC"});
+    g+=`<text x="${xx}" y="${padT+plotH+18}" text-anchor="middle" font-size="10.5" fill="${cssVar('--muted')}" font-family="system-ui">${lbl}</text>`;
+  }
+  g+=`<line x1="${padL}" y1="${padT+plotH}" x2="${padL+plotW}" y2="${padT+plotH}" stroke="${cssVar('--axis')}" stroke-width="1"/>`;
+
+  // single mode: moving averages behind the price line
+  if(!normalized && STATE.single){
+    const full = STATE.data[STATE.single].bars;
+    for(const [win,dash] of [[50,"none"],[200,"none"]]){
+      const pts=[];
+      for(let i=win-1;i<full.length;i++){
+        const d=parseD(full[i].t);
+        if(d<xMin) continue;
+        let s=0; for(let k=i-win+1;k<=i;k++) s+=full[k].c;
+        pts.push({x:X(d), y:Y(s/win)});
+      }
+      if(pts.length>1){
+        g+=`<path d="${pts.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+","+p.y.toFixed(1)).join(" ")}" fill="none" stroke="${cssVar('--muted')}" stroke-width="${win===50?1.25:1.25}" stroke-opacity="${win===50?0.75:0.45}" stroke-linecap="round"/>`;
+        const lp=pts[pts.length-1];
+        g+=`<text x="${lp.x+6}" y="${lp.y+3.5}" font-size="10" fill="${cssVar('--muted')}" font-family="system-ui">${win}d</text>`;
+      }
+    }
+  }
+
+  for(const s of prepped){
+    const d = s.pts.map((p,i)=>(i?"L":"M")+X(p.x).toFixed(1)+","+Y(p.y).toFixed(1)).join(" ");
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${s.bench?' stroke-dasharray="5 4" stroke-opacity="0.9"':''}/>`;
+  }
+  // endpoint markers + direct labels (relief for sub-3:1 hues)
+  const labels = prepped.map(s=>({s, x:X(s.last.x), y:Y(s.last.y)})).sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labels.length;i++) if(labels[i].y-labels[i-1].y<13) labels[i].y=labels[i-1].y+13;
+  for(const L of labels){
+    const ey=Y(L.s.last.y), ex=X(L.s.last.x);
+    g+=`<circle cx="${ex}" cy="${ey}" r="3.5" fill="${L.s.color}" stroke="${cssVar('--surface-1')}" stroke-width="2"/>`;
+    // leader line when the label had to be nudged off its endpoint to avoid a collision
+    if(Math.abs(L.y-ey)>2)
+      g+=`<path d="M${ex+5},${ey} L${padL+plotW+4},${L.y}" fill="none" stroke="${L.s.color}" stroke-width="1" stroke-opacity="0.4"/>`;
+    g+=`<text x="${padL+plotW+8}" y="${L.y+3.5}" font-size="10.5" font-weight="640" fill="${L.s.bench?cssVar('--muted'):L.s.color}" font-family="system-ui" style="font-variant-numeric:tabular-nums">${esc(L.s.t)}</text>`;
+  }
+  g+=`<g id="cross" style="display:none"><line stroke="${cssVar('--axis')}" stroke-width="1"/></g>`;
+  g+=`<rect id="hit" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="cursor:crosshair"/>`;
+
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.setAttribute("height",H);
+  svg.innerHTML=g;
+
+  /* crosshair + tooltip */
+  const hit=svg.querySelector("#hit"), cross=svg.querySelector("#cross"), cline=cross.querySelector("line");
+  const dots=[];
+  for(const s of prepped){
+    const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("r","4.5"); c.setAttribute("fill",s.color);
+    c.setAttribute("stroke",cssVar("--surface-1")); c.setAttribute("stroke-width","2");
+    c.style.display="none"; cross.appendChild(c); dots.push({s,c});
+  }
+  function move(ev){
+    const r=svg.getBoundingClientRect();
+    const px=(ev.clientX-r.left)/r.width*W;
+    if(px<padL||px>padL+plotW) return leave();
+    const xv = xMin + (px-padL)/plotW*(xMax-xMin);
+    cross.style.display="";
+    let cx=null, rows=[], dateLbl="";
+    dots.forEach(({s,c},i)=>{
+      let best=s.pts[0],bd=Infinity;
+      for(const p of s.pts){ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=p;} }
+      if(cx===null){ cx=X(best.x); dateLbl=new Date(best.x).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}); }
+      c.setAttribute("cx",X(best.x)); c.setAttribute("cy",Y(best.y)); c.style.display="";
+      rows.push({t:s.t,color:s.color,bench:s.bench,val:best.y,px:best.c});
+    });
+    cline.setAttribute("x1",cx);cline.setAttribute("x2",cx);
+    cline.setAttribute("y1",padT);cline.setAttribute("y2",padT+plotH);
+    rows.sort((a,b)=>(b.val)-(a.val));
+    tip.innerHTML = `<div class="d">${esc(dateLbl)}</div><table>${rows.map(r=>
+      `<tr><td class="n"><span class="dot" style="background:${r.color}"></span>${esc(r.t)}</td>
+       <td class="v" style="color:${normalized?(r.val>=0?cssVar('--good-text'):cssVar('--crit-text')):cssVar('--text-primary')}">${normalized?fmtPct(r.val):"$"+fmtPx(r.px)}</td>
+       ${normalized?`<td class="v" style="color:var(--muted);padding-left:10px">$${fmtPx(r.px)}</td>`:""}</tr>`).join("")}</table>`;
+    tip.style.opacity="1";
+    const bw=box.clientWidth, sx=cx/W*bw;
+    const tw=tip.offsetWidth;
+    tip.style.left = Math.max(4, Math.min(bw-tw-4, sx+14)) + "px";
+    tip.style.top = "12px";
+  }
+  function leave(){ cross.style.display="none"; dots.forEach(d=>d.c.style.display="none"); tip.style.opacity="0"; }
+  hit.addEventListener("mousemove",move);
+  hit.addEventListener("mouseleave",leave);
+  hit.addEventListener("touchmove",e=>{ if(e.touches[0]) move(e.touches[0]); },{passive:true});
+}
+
+function renderLegend(series){
+  const n=periodDays();
+  $("#legend").innerHTML = series.map(s=>{
+    const t=s.t, d=STATE.data[t];
+    let val="–", vc="";
+    if(d && !d.err && d.bars && d.bars.length>1){
+      const v = STATE.period==="1D"
+        ? (d.quote && isFinite(d.quote.cp) ? +d.quote.cp : changeOver(d.bars,1))
+        : changeOver(d.bars,n);
+      val = fmtPct(v); vc = cls(v);
+    }
+    return `<span class="lg" data-t="${esc(t)}" role="button" tabindex="0" title="${s.bench?"Untick “Show S&P 500” to remove":"Click to take this off the chart"}">
+      <span class="dot" style="background:${s.color}"></span>
+      <span>${esc(t)}${s.bench?` <span style="color:var(--muted)">(${esc(CFG.benchmarkLabel)})</span>`:''}</span>
+      <span class="val ${vc}">${val}</span></span>`;
+  }).join("");
+  $("#legend").querySelectorAll(".lg").forEach(el=>{
+    const go=()=>{
+      const t=el.dataset.t;
+      if(t===CFG.benchmark && !isCharted(t)){ STATE.showBench=false; $("#benchChk").checked=false; renderAll(); return; }
+      if(STATE.view==="single") return;      // nothing to remove in single mode
+      chartOff(t); saveConfig(); renderAll();
+    };
+    el.addEventListener("click",go);
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();go();} });
+  });
+}
+
+/* table-view twin of the chart */
+function renderChartTable(series,isBar){
+  const wrap=$("#chartTableWrap");
+  if(!STATE.tableView){ wrap.style.display="none"; $("#chart").style.display="block"; $("#legend").style.display="flex"; return; }
+  $("#chart").style.display="none"; $("#legend").style.display="none"; wrap.style.display="block";
+  const n=periodDays();
+  if(isBar){
+    const anyFund = series.some(s=>isFund(s.t));
+    wrap.innerHTML = `<table class="data"><thead><tr><th class="lft">Ticker</th><th class="lft">Name</th><th>Price</th><th>${anyFund?"Latest change":"Change today"}</th></tr></thead><tbody>${
+      series.map(s=>{ const d=STATE.data[s.t]; const q=d.quote; const mm=metricsFor(s.t);
+        const v=mm?mm.day:(q&&isFinite(q.cp)?+q.cp:null); const px=d.bars[d.bars.length-1].c;
+        return `<tr${s.bench?' class="bench"':''}><td class="lft">${esc(s.t)}</td><td class="lft">${esc(nameFor(s.t))}</td><td>$${fmtPx(px)}</td><td class="${cls(v)}">${fmtPct(v)}</td></tr>`;
+      }).join("")}</tbody></table>`;
+    return;
+  }
+  const cols = series.map(s=>({t:s.t, map:new Map(sliceFor(STATE.data[s.t].bars,n).map(b=>{
+    const base=sliceFor(STATE.data[s.t].bars,n)[0].c; return [b.t,{c:b.c,p:(b.c-base)/base*100}];
+  }))}));
+  const dates=[...new Set(cols.flatMap(c=>[...c.map.keys()]))].sort().reverse();
+  wrap.innerHTML = `<table class="data"><thead><tr><th class="lft">Date</th>${
+    cols.map(c=>`<th>${esc(c.t)} %</th><th>${esc(c.t)} $</th>`).join("")}</tr></thead><tbody>${
+    dates.map(d=>`<tr><td class="lft">${esc(d)}</td>${cols.map(c=>{
+      const v=c.map.get(d);
+      return v?`<td class="${cls(v.p)}">${fmtPct(v.p)}</td><td>$${fmtPx(v.c)}</td>`:"<td>–</td><td>–</td>";
+    }).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+/* ============================ tiles / alerts / metrics ============================ */
+/* The chip row filters the tile wall only. It deliberately does not touch the chart:
+   the charted set is an explicit choice and shouldn't vanish because a filter moved. */
+function renderGroupSeg(){
+  const el=$("#groupSeg"); if(!el) return;
+  const gs=groupList();
+  if(gs.length<2){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display="";
+  if(STATE.group!=="All" && !gs.includes(STATE.group)) STATE.group="All";
+  const count = g => g==="All" ? CFG.watchlist.length : CFG.watchlist.filter(w=>w.group===g).length;
+  el.innerHTML = ["All"].concat(gs).map(g=>
+    `<button data-group="${esc(g)}" aria-pressed="${String(STATE.group===g)}">${esc(g)} <span class="quiet">${count(g)}</span></button>`
+  ).join("");
+  el.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    STATE.group=b.dataset.group; renderTiles();
+  }));
+}
+
+function renderTiles(){
+  renderGroupSeg();
+  const single = STATE.view==="single";
+  $("#tiles").innerHTML = visibleWatchlist().map(w=>{
+    const t=w.ticker, d=STATE.data[t], m=metricsFor(t);
+    if(!d || d.err || !m){
+      return `<span class="pick err" title="${esc(d&&d.err?("Couldn't load: "+d.err):"Loading…")}">
+        <span class="dot" style="background:var(--grid)"></span>${esc(t)}</span>`;
+    }
+    const on = single ? STATE.single===t : isCharted(t);
+    /* Everything the old tile printed on its face, minus what the metrics table already shows:
+       the name, and the two data caveats. */
+    const bits = [nameFor(t)];
+    if(m.fund) bits.push("Mutual fund — one NAV a day, published after the close.");
+    if(m.conv) bits.push(`${m.exch||"Local"} listing in ${m.ccy}, converted to USD at each day's ECB rate.`);
+    bits.push(single ? "Click to focus this one."
+                     : on ? "On the chart — click to remove." : "Click to add to the chart.");
+    return `<span class="pick ${on?"on":"off"}" role="button" tabindex="0" aria-pressed="${on}"
+      data-t="${esc(t)}" title="${esc(bits.join(" "))}">
+      <span class="dot" style="background:${on?colorFor(t):"transparent"}"></span>${esc(t)}${
+        m.fund?' <span class="tag">F</span>':""}${m.conv?` <span class="tag">${esc(m.ccy)}</span>`:""}</span>`;
+  }).join("");
+  $("#tilesTitle").textContent = STATE.group==="All" ? "Chart series" : `Chart series — ${STATE.group}`;
+  $("#tilesNote").textContent = single
+    ? "Click a ticker to focus it in the chart below."
+    : `${STATE.slots.size} of ${MAX_CHARTED} on the chart · click to add or remove`;
+  $("#tiles").querySelectorAll(".pick[data-t]").forEach(el=>{
+    const go=()=>{
+      const t=el.dataset.t;
+      if(STATE.view==="single"){ STATE.single=t; syncViewSeg(); renderAll(); return; }
+      if(isCharted(t)) chartOff(t);
+      else if(!chartOn(t)) return flash(`The chart holds ${MAX_CHARTED} at once — take one off first (click a lit chip, or a name in the legend).`);
+      saveConfig(); renderAll();
+    };
+    el.addEventListener("click",go);
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();go();} });
+  });
+}
+
+/* ---------- positions ----------
+   A watchlist entry becomes a position when it carries `shares`. These feed three columns in
+   Metrics & signals (Shares / Cost basis / Market value) and the portfolio totals row under
+   them; there is no separate holdings panel, by request — the same numbers in two places was
+   just noise.
+   `cost` is cost per share and is deliberately nullable: Schwab reports no cost basis for the
+   INTC lot, and Schwab's own screen then prints "+100.00%" for it — cost treated as zero. That
+   is a wrong number wearing a plausible face, exactly the class of bug this file keeps getting
+   caught by, so an unknown cost stays null: no gain is computed for that row, and it is
+   excluded from the totals' cost base (its market value still counts, the shares are real). */
+/* ---------- the review window ----------
+   Bob reviews every two months, so 1M and 3M are both the wrong window for the question he is
+   actually asking. `reviewDates` logs each review; the window starts at the latest one strictly
+   BEFORE today (so marking today's review doesn't collapse the column to zero — it still reads
+   from the previous one until the next). With nothing logged yet it falls back to 60 calendar
+   days, which is that cadence by another name, and the header says which it used. */
+const REVIEW_FALLBACK_DAYS = 60;
+function reviewFrom(){
+  const today = isoDay(new Date());
+  const prior = (CFG.reviewDates||[]).filter(d=>typeof d==="string" && d < today).sort();
+  if(prior.length) return {day:prior[prior.length-1], logged:true};
+  return {day: isoDay(new Date(Date.now() - REVIEW_FALLBACK_DAYS*DAY)), logged:false};
+}
+/* Price return from the last bar on or before `from.day` to the latest bar. Uses the same
+   converted-to-USD series everything else does, so a non-US line's figure includes the
+   currency move like every other percentage on the page. */
+function changeSince(t, from){
+  const d = STATE.data[t];
+  if(!d || d.err || !d.bars || d.bars.length<2) return null;
+  const bars = d.bars;
+  let i = -1;
+  for(let j=0;j<bars.length;j++){ if(bars[j].t <= from.day) i=j; else break; }
+  if(i < 0) return null;                       // the window starts before this holding's history
+  const a = bars[i].c, b = bars[bars.length-1].c;
+  return (a>0 && i < bars.length-1) ? (b-a)/a*100 : null;
+}
+
+function positions(){
+  return (CFG.watchlist||[]).filter(w=>isFinite(w.shares) && +w.shares > 0);
+}
+function positionOf(t){
+  const w=(CFG.watchlist||[]).find(x=>x.ticker===t);
+  return (w && isFinite(w.shares) && +w.shares>0) ? w : null;
+}
+/* px is already USD — metricsFor() converts a non-USD listing day by day before it gets here. */
+function holdingRow(w){
+  const m = metricsFor(w.ticker);
+  if(!m) return {ticker:w.ticker, err:true};
+  const shares = +w.shares;
+  const value  = shares * m.px;
+  const knownCost = isFinite(w.cost) && w.cost !== null;
+  const costBase = knownCost ? shares * +w.cost : null;
+  return {
+    ticker:w.ticker, shares, px:m.px, day:m.day, fund:m.fund, conv:m.conv, ccy:m.ccy,
+    cost: knownCost ? +w.cost : null,
+    value, costBase,
+    gl:   costBase!=null ? value-costBase : null,
+    glPct:costBase!=null ? (value-costBase)/costBase*100 : null,
+    /* today's move in dollars — the day % applied to yesterday's value of the same shares */
+    dayUsd: isFinite(m.day) ? value - value/(1+m.day/100) : null
+  };
+}
+function portfolioTotals(){
+  const rows = positions().map(holdingRow).filter(r=>!r.err);
+  const value = rows.reduce((s,r)=>s+r.value, 0);
+  /* the cost base only covers rows whose cost is known, so the % is honest about its own scope */
+  const priced = rows.filter(r=>r.costBase!=null);
+  const costBase = priced.reduce((s,r)=>s+r.costBase, 0);
+  const valuePriced = priced.reduce((s,r)=>s+r.value, 0);
+  const dayUsd = rows.reduce((s,r)=>s+(r.dayUsd||0), 0);
+  return {
+    rows, value, dayUsd,
+    dayPct: value-dayUsd !== 0 ? dayUsd/(value-dayUsd)*100 : null,
+    costBase, gl: costBase ? valuePriced-costBase : null,
+    glPct: costBase ? (valuePriced-costBase)/costBase*100 : null,
+    unknownCost: rows.filter(r=>r.costBase==null).map(r=>r.ticker),
+    missing: positions().map(w=>w.ticker).filter(t=>!rows.some(r=>r.ticker===t))
+  };
+}
+const fmtUsd = v => (v==null||!isFinite(v)) ? "—"
+  : (v<0?"-":"") + "$" + Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtSh = v => (v==null||!isFinite(v)) ? "—"
+  : v.toLocaleString("en-US",{maximumFractionDigits:4});
+
+
+function renderAlerts(){
+  const fired = evalRules();
+  const el=$("#alerts");
+  const active = CFG.alertRules.filter(r=>r.enabled).length;
+  if(!fired.length){
+    $("#alertNote").textContent = `${active} rule${active===1?"":"s"} active · 0 triggered`;
+    el.innerHTML = `<div class="quiet">Nothing has crossed a threshold. ${
+      CFG.alertRules.filter(r=>r.enabled).map(r=>ruleText(r)).join(" · ") || "No rules are enabled."
+    }</div>`;
+    return;
+  }
+  /* One chip per TICKER, not per rule. A stock breaching a 3-day and a 30-day rule at once used
+     to take two chips side by side, which read as two problems and pushed the rest off the row.
+     Readings are ordered shortest window first, because the recent move is the news; the chip's
+     arrow and colour come from the largest-magnitude reading. Where the readings disagree in
+     direction the arrow becomes ⇅ and the colour goes neutral — one stock up 12% over a month
+     and down 6% this week is not a red chip or a green one, and each reading keeps its own sign
+     and colour so nothing rests on the chip's border alone. */
+  const byTicker = new Map();
+  for(const f of fired){
+    if(!byTicker.has(f.ticker)) byTicker.set(f.ticker, []);
+    byTicker.get(f.ticker).push(f);
+  }
+  const groups = [...byTicker.entries()].map(([ticker, hits])=>{
+    hits.sort((a,b)=> (a.rule.days - b.rule.days) || (Math.abs(b.change)-Math.abs(a.change)));
+    const worst = hits.reduce((a,b)=> Math.abs(b.change)>Math.abs(a.change) ? b : a);
+    const dirs = new Set(hits.map(x=>x.change<0));
+    return {ticker, hits, worst, mixed: dirs.size>1, peak: Math.abs(worst.change)};
+  }).sort((a,b)=> b.peak - a.peak);
+
+  $("#alertNote").textContent = `${active} rule${active===1?"":"s"} active · ${fired.length} triggered`
+    + (fired.length>groups.length ? ` across ${groups.length} holding${groups.length===1?"":"s"}` : "")
+    + " · hover a chip for the rules behind it";
+
+  const CAP=10, show = STATE.showAllAlerts ? groups : groups.slice(0,CAP);
+  el.innerHTML = show.map(g=>{
+    const down = g.worst.change<0;
+    const klass = g.mixed ? "warn" : (down ? "crit" : "good");
+    const icon  = g.mixed ? "⇅" : (down ? "▼" : "▲");
+    const full = g.hits.map(f=>{
+      const dn = f.change<0;
+      return `${dn?"Down":"Up"} ${Math.abs(f.change).toFixed(2)}% over the last ${f.rule.days} day${f.rule.days===1?"":"s"}`
+           + ` — past your ${f.rule.pct}% threshold. Rule: ${ruleText(f.rule)}`;
+    }).join("  ·  ");
+    const readings = g.hits.map(f=>{
+      const dn = f.change<0;
+      return `<span class="rd"><span class="mv ${dn?"down":"up"}">${dn?"−":"+"}${Math.abs(f.change).toFixed(1)}%</span>`
+           + `<span class="win">${esc(f.rule.days)}d</span></span>`;
+    }).join("");
+    return `<div class="alert ${klass}${g.hits.length>1?" multi":""}" title="${esc(g.ticker+" — "+full)}">
+      <span class="ic">${icon}</span>
+      <span class="tk">${esc(g.ticker)}</span>
+      <span class="rds">${readings}</span>
+    </div>`;
+  }).join("") + (groups.length>CAP
+    ? `<button class="btn sm ghost" id="moreAlerts">${
+        STATE.showAllAlerts ? "Show fewer" : `Show ${groups.length-CAP} more`}</button>` : "");
+  const mb=$("#moreAlerts");
+  if(mb) mb.onclick=()=>{ STATE.showAllAlerts=!STATE.showAllAlerts; renderAlerts(); };
+}
+function ruleText(r){
+  const who = r.scope==="*" ? "any tracked stock" : r.scope;
+  const dir = r.direction==="drop" ? "drops" : r.direction==="rise" ? "rises" : "moves";
+  const u = (r.unit||"trading")==="calendar" ? "calendar day" : "trading day";
+  return `${who} ${dir} ${r.pct}% over ${r.days} ${u}${r.days===1?"":"s"}`;
+}
+
+const pctCell  = v => v==null||!isFinite(v) ? "–" : fmtPct(v);
+const ptsCell  = v => v==null||!isFinite(v) ? "–" : (v>0?"+":"")+v.toFixed(1);
+const wholePct = v => v==null||!isFinite(v) ? "–" : v.toFixed(0)+"%";
+
+/* ---------- metrics table columns ----------
+   Two sets over one dictionary. Monitoring is the day-to-day question ("what moved, and
+   against what"); reviewing is Bob's two-monthly question ("what is this worth, what did it
+   make me, and how much of the portfolio is it"). Same table, different columns, because a
+   single 20-column table serves neither. Keys are stable, so a sort survives a mode switch
+   when the column exists in both. */
+const MCOL_DEFS = {
+  ticker:  {k:"ticker", lbl:"Ticker",  lft:true},
+  px:      {k:"px",     lbl:"Price",   fmt:v=>"$"+fmtPx(v)},
+  day:     {k:"day",    lbl:"1D",      heat:true, fmt:pctCell,
+    /* Only fires when this row's latest bar is older than the newest bar on the page. */
+    suffix: r => {
+      if(!r.m || !r.m.asOf) return "";
+      const newest = latestBarDay();
+      return (newest && r.m.asOf < newest) ? shortDay(r.m.asOf) : "";
+    },
+    suffixTip: r => `This is the ${r.m && r.m.fund ? "last published NAV change" : "last completed session"}, dated ${r.m ? r.m.asOf : ""} — not today's move. A fund strikes one NAV a day, after the close, so during the session its most recent reading is the previous day's while a live-quoted ETF's is today's.`,
+    tip:"One session's move. A row dated in grey is reporting an earlier day than the rest of the table — a mutual fund prices once a day after the close, so mid-session its latest reading is yesterday's."},
+  p1m:     {k:"p1m",    lbl:"1M",      heat:true, fmt:pctCell},
+  p3m:     {k:"p3m",    lbl:"3M",      heat:true, fmt:pctCell},
+  p6m:     {k:"p6m",    lbl:"6M",      heat:true, fmt:pctCell},
+  p12m:    {k:"p12m",   lbl:"12M",     heat:true, fmt:pctCell},
+  rel:     {k:"rel",    lbl:"vs S&P",  heat:true, fmt:ptsCell, tip:"This period's return minus the S&P 500's, in percentage points."},
+  v50:     {k:"v50",    lbl:"vs 50d",  heat:true, fmt:pctCell, tip:"Percent above or below the 50-day moving average."},
+  v200:    {k:"v200",   lbl:"vs 200d", heat:true, fmt:pctCell, tip:"Percent above or below the 200-day moving average."},
+
+  /* --- review columns --- */
+  sinceRev:    {k:"sinceRev", lbl:"Since rev", heat:true, fmt:pctCell,
+    get:r=>r.m ? changeSince(r.t, reviewFrom()) : null,
+    tip:"Price return since your last logged review — or the last 60 days if none is logged yet, which is roughly your cadence. Set by “Mark reviewed today”."},
+  sinceRevUsd: {k:"sinceRevUsd", lbl:"Since rev $",
+    get:r=>{ const p=positionOf(r.t); if(!p||!r.m) return null;
+             const c=changeSince(r.t, reviewFrom()); if(c==null) return null;
+             const now=+p.shares*r.m.px; return now - now/(1+c/100); },
+    fmt:v=>v==null?"—":fmtUsd(v),
+    tip:"What that price move was worth in dollars on the shares you hold NOW. It is not realised P&L: anything you bought or sold inside the window is not accounted for."},
+  shares:  {k:"shares", lbl:"Shares",  get:r=>{const p=positionOf(r.t); return p?+p.shares:null;},
+    fmt:v=>v==null?"—":fmtSh(v), tip:"Shares you have entered for this ticker in Settings. Em dash means it is watched, not owned."},
+  costBase:{k:"costBase", lbl:"Cost basis", get:r=>{const p=positionOf(r.t); return (p && p.cost!=null && isFinite(p.cost)) ? +p.shares*+p.cost : null;},
+    fmt:v=>v==null?"—":fmtUsd(v), tip:"Shares × cost per share. Em dash where no cost has been entered — a missing cost is not a zero cost, so no total is invented for it."},
+  mktValue:{k:"mktValue", lbl:"Market value", get:r=>{const p=positionOf(r.t); return (p && r.m) ? +p.shares*r.m.px : null;},
+    fmt:v=>v==null?"—":fmtUsd(v), tip:"Shares × current price. For a non-US listing the price is already converted to USD."},
+  weight:  {k:"weight", lbl:"Weight", get:r=>{const p=positionOf(r.t); if(!p||!r.m) return null;
+             const T=portfolioTotals(); return T.value ? (+p.shares*r.m.px)/T.value*100 : null;},
+    fmt:v=>v==null?"—":v.toFixed(1)+"%", tip:"Share of the portfolio's market value. This is the column that says whether a holding can move the needle at all."},
+  gl:      {k:"gl", lbl:"Gain $", get:r=>{const p=positionOf(r.t);
+             if(!p||!r.m||p.cost==null||!isFinite(p.cost)) return null;
+             return +p.shares*r.m.px - +p.shares*+p.cost;},
+    fmt:v=>v==null?"—":fmtUsd(v),
+    tip:"Lifetime gain in dollars. Ranked by this rather than by percent, a 111% gain on $6k sits below a 50% gain on $19k — which is the honest order."},
+  glPct:   {k:"glPct", lbl:"Gain %", heat:true, get:r=>{const p=positionOf(r.t);
+             if(!p||!r.m||p.cost==null||!isFinite(p.cost)) return null;
+             const cb=+p.shares*+p.cost; return (+p.shares*r.m.px-cb)/cb*100;},
+    /* "—" not "–": these two glyphs mean different things here. The en dash is "no reading"
+       (used by pctCell for a price series too short to measure); the em dash is "not applicable",
+       which is what an unowned ticker or a missing cost basis actually is. */
+    fmt:v=>v==null?"—":pctCell(v),
+    tip:"Lifetime gain in percent. Read it next to Weight — a big percent on a small weight barely moves the portfolio."},
+
+  score:   {k:"score",  lbl:"Signal",  lft:true, tip:"Composite of the price readings — RSI and 52-week position feed it without having their own columns. Sorts strongest-to-weakest."}
+};
+const MCOL_SETS = {
+  monitor: ["ticker","px","day","p1m","p3m","p6m","p12m","rel","v50","v200","score"],
+  review:  ["ticker","px","sinceRev","sinceRevUsd","shares","costBase","mktValue","weight","gl","glPct","score"]
+};
+const mcols = () => MCOL_SETS[STATE.mcols].map(k=>MCOL_DEFS[k]);
+
+/* ---------------------------- heat map ----------------------------
+   Two ramps per palette: [colour at the neutral end, colour at the extreme].
+   Gains run yellow→deep green, losses amber→deep red, so the full scale reads
+   green · yellow · orange · red. A blue-for-green colour-vision-safe ramp used to be
+   offered alongside it; Bob asked for that option to go (2026-08-21). If it is ever wanted
+   back, the ramp was pos [141,190,233]→[24,86,166] light / [142,190,238]→[62,142,236] dark,
+   with violet rather than blue for the positive outlier so "up" and "off-scale" stayed
+   distinguishable. Note the heat map remains togglable OFF, which is the real accessibility
+   escape hatch — no reading in this table depends on colour alone.            */
+const HEAT_RAMPS = {
+  gr: {
+    light: { pos:[[236,201,48],[13,124,66]],  neg:[[246,146,46],[189,38,38]] },
+    dark:  { pos:[[236,204,66],[30,168,94]],  neg:[[244,150,54],[218,62,62]] }
+  }
+};
+/* Off-scale extremes. Anything at or beyond these breaks out of the green–red ramp
+   entirely and gets its own colour, so a genuine multi-bagger never reads as merely
+   "dark green". Note that OUTLIER_NEG is effectively unreachable on a return column —
+   a price cannot fall more than 100% — so change it to about -50 if you want the black
+   treatment to actually appear on big losers. */
+const OUTLIER_POS =  100;
+const OUTLIER_NEG = -100;
+
+/* Positive extremes are blue — distinct from the green ramp, so a genuine multi-bagger
+   doesn't read as merely "dark green". Negative extremes are black, ringed in dark mode so
+   the cell doesn't dissolve into the surface. */
+const OUTLIER_STYLE = {
+  pos:{
+    gr:{  light:"background:#17509c;color:#fff", dark:"background:#2f7ae0;color:#fff" }
+  },
+  neg:{
+    gr:{  light:"background:#101010;color:#fff",
+          dark:"background:#000;color:#fff;box-shadow:inset 0 0 0 1.5px var(--surface-1),inset 0 0 0 3px #3f3f3c" }
+  }
+};
+
+const isDarkMode = () => {
+  const t = document.documentElement.getAttribute("data-theme");
+  return t==="dark" || (t!=="light" && matchMedia("(prefers-color-scheme: dark)").matches);
+};
+const _lin = c => { c/=255; return c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4); };
+
+/* t is signed, clamped to [-1,1]: +1 = best in view, -1 = worst. */
+function heatStyle(t, raw){
+  if(STATE.heat==="off") return "";
+  const dark = isDarkMode();
+  const mode = dark ? "dark" : "light";
+  // Off-scale check runs on the RAW value, before any per-column normalisation, so the
+  // threshold means the same thing in every column and in both scale modes.
+  if(raw != null && isFinite(raw)){
+    if(raw >= OUTLIER_POS) return OUTLIER_STYLE.pos[STATE.heat][mode];
+    if(raw <= OUTLIER_NEG) return OUTLIER_STYLE.neg[STATE.heat][mode];
+  }
+  if(t==null || !isFinite(t)) return "";
+  const a = Math.min(1, Math.abs(t));
+  if(a < (dark ? 0.07 : 0.045)) return "";      // near-neutral cells stay clean
+  const surf = dark ? [26,26,25] : [252,252,251];
+  const R = HEAT_RAMPS[STATE.heat][dark?"dark":"light"];
+  const ramp = t >= 0 ? R.pos : R.neg;
+  const hue = ramp[0].map((v,i) => v + (ramp[1][i]-v)*a);
+  // How far to mix the hue toward the surface. Dark mode needs a much higher floor:
+  // mixing amber toward near-black desaturates into brown, so magnitude is carried
+  // mostly by position along the ramp there rather than by how much tint is applied.
+  const k = dark ? 0.44 + 0.46*Math.pow(a, 0.70)
+                 : 0.17 + 0.68*Math.pow(a, 0.62);
+  const bg = hue.map((v,i) => Math.round(surf[i] + (v-surf[i])*k));
+  const L = 0.2126*_lin(bg[0]) + 0.7152*_lin(bg[1]) + 0.0722*_lin(bg[2]);
+  return `background:rgb(${bg[0]},${bg[1]},${bg[2]});color:${L>0.32?"#0b0b0b":"#ffffff"}`;
+}
+
+/* Scale for one column. "zero" keeps 0% at the neutral midpoint and saturates at the
+   column's 85th-percentile move, so a single 300% outlier can't wash out everything
+   else. "peers" ranks worst-to-best regardless of sign — what you want when the whole
+   column is green and you're hunting the laggard. */
+function heatScaler(vals, mode){
+  const clean = vals.filter(v => v!=null && isFinite(v));
+  if(clean.length < 2) return () => null;
+  if(mode === "peers"){
+    // Percentile rank, not linear min-max. Min-max lets one outlier (INTC at +309% over
+    // 12M) push every other gainer into the red half — a +32% year should never look bad.
+    const sorted = [...clean].sort((a,b)=>a-b);
+    const n = sorted.length;
+    return v => {
+      if(v==null || !isFinite(v)) return null;
+      let lo=0, hi=n;
+      while(lo<hi){ const mid=(lo+hi)>>1; if(sorted[mid]<v) lo=mid+1; else hi=mid; }
+      let hi2=lo; while(hi2<n && sorted[hi2]===v) hi2++;   // average rank across ties
+      const rank = (lo + hi2 - 1)/2;
+      return n<2 ? 0 : (rank/(n-1))*2 - 1;
+    };
+  }
+  const mags = clean.map(Math.abs).sort((a,b)=>a-b);
+  const p85  = mags[Math.min(mags.length-1, Math.floor(mags.length*0.85))];
+  const scale = Math.max(p85, 0.75);
+  return v => (v==null||!isFinite(v)) ? null : Math.max(-1, Math.min(1, v/scale));
+}
+
+/* ---------- exposure ----------
+   The point of this panel is that "which holding performed best" is close to the wrong
+   question when 72% of the money is in one index. So: a hero number for the concentration,
+   one horizontal stacked bar for the composition, and an explicit flag where two holdings
+   track the same thing.
+
+   Buckets come from each entry's `exposure` tag and are drawn in CFG.exposureOrder — a FIXED
+   order, so a bucket keeps its colour when weights change or a holding is sold. Colour by
+   current rank would repaint the survivors, which is how a reader who learned "gold is yellow"
+   gets misled. Hues are --s1..--s6, validated for colour-vision separation in both themes. */
+const UNTAGGED = "Untagged";
+function exposureBuckets(){
+  const T = portfolioTotals();
+  if(!T.value) return null;
+  const byBucket = new Map();
+  for(const r of T.rows){
+    const w = CFG.watchlist.find(x=>x.ticker===r.ticker);
+    const b = (w && w.exposure) || UNTAGGED;
+    if(!byBucket.has(b)) byBucket.set(b, {name:b, value:0, tickers:[]});
+    const e = byBucket.get(b);
+    e.value += r.value; e.tickers.push(r.ticker);
+  }
+  const order = (CFG.exposureOrder||[]).filter(b=>byBucket.has(b));
+  for(const b of byBucket.keys()) if(!order.includes(b)) order.push(b);   // untagged lands last
+
+  /* A bucket's hue is its index in the DECLARED order (CFG.exposureOrder), not its position in
+     the list of buckets that happen to be populated right now. Indexing the filtered list looked
+     equivalent and wasn't: retagging the last US-single-stock holding shifted International from
+     yellow to green and Gold from pink to yellow, so a reader who had learned "gold is pink" was
+     silently misled. Colour follows the entity, never its current rank.
+     "Untagged" is the absence of a category rather than a category, so it takes the
+     de-emphasis grey and consumes no hue slot. */
+  const slots = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+  const declared = (CFG.exposureOrder||[]).filter(b=>b!==UNTAGGED);
+  const hueFor = b => {
+    if(b===UNTAGGED) return cssVar("--bench");
+    let i = declared.indexOf(b);
+    if(i < 0) i = declared.length + [...byBucket.keys()].filter(x=>x!==UNTAGGED && !declared.includes(x)).sort().indexOf(b);
+    return cssVar(slots[((i % slots.length) + slots.length) % slots.length]);
+  };
+  const buckets = order.map(b=>{
+    const e = byBucket.get(b);
+    return {...e, pct: e.value/T.value*100, colour: hueFor(b)};
+  });
+  return {total:T.value, buckets};
+}
+/* Two holdings tracking the same index is the finding most worth surfacing, because nothing
+   else on the page reveals it: two tickers, two rows, two sets of returns — one bet. */
+function duplicateIndexes(){
+  const T = portfolioTotals();
+  const by = new Map();
+  for(const r of T.rows){
+    const w = CFG.watchlist.find(x=>x.ticker===r.ticker);
+    const tr = w && w.tracks; if(!tr) continue;
+    if(!by.has(tr)) by.set(tr, {tracks:tr, tickers:[], value:0});
+    const e=by.get(tr); e.tickers.push(r.ticker); e.value += r.value;
+  }
+  return [...by.values()].filter(e=>e.tickers.length>1)
+    .map(e=>({...e, pct: T.value ? e.value/T.value*100 : null}));
+}
+function renderExposure(){
+  const el = $("#exposure"); if(!el) return;
+  const X = exposureBuckets();
+  if(STATE.mcols!=="review" || !X){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display="";
+  const top = [...X.buckets].sort((a,b)=>b.pct-a.pct)[0];
+  const dups = duplicateIndexes();
+  const flags = [];
+  /* Answering the obvious question where it gets asked, rather than in a README nobody has
+     open. This fires exactly when there is something to fix. */
+  const untagged = X.buckets.find(b=>b.name===UNTAGGED);
+  if(untagged) flags.push(`<b>${untagged.pct.toFixed(1)}%</b> is <b>Untagged</b> — ${
+    untagged.tickers.length===1?"that holding has":"those holdings have"} no exposure bucket, so the bar can't group
+    ${untagged.tickers.length===1?"it":"them"}: ${untagged.tickers.map(esc).join(", ")}. They still count in the
+    portfolio total and in every column of the table. Set a bucket per holding in
+    <b>Settings → Watchlist</b>, using the dropdown on each row.`);
+  for(const d of dups) flags.push(`<b>${d.tickers.map(esc).join(" and ")}</b> both track the ${esc(d.tracks)} — that is
+    <b>${d.pct.toFixed(1)}%</b> of the portfolio (${fmtUsd(d.value)}) in one index held two ways. Two rows in the table
+    below, two sets of returns, one bet.`);
+  el.innerHTML = `<div class="exp">
+    <div class="exp-hero">
+      <span class="n">${top.pct.toFixed(1)}%</span>
+      <span class="lbl">of ${fmtUsd(X.total)} sits in <b>${esc(top.name)}</b>${
+        top.tickers.length>1?` (${top.tickers.map(esc).join(" + ")})`:""}. Everything else is the remaining ${(100-top.pct).toFixed(1)}%.</span>
+    </div>
+    <div class="exp-bar" role="img" aria-label="Portfolio composition: ${X.buckets.map(b=>`${b.name} ${b.pct.toFixed(1)} percent`).join(", ")}">
+      ${X.buckets.map(b=>`<div class="exp-seg" style="width:${b.pct}%;background:${b.colour}"
+          title="${esc(b.name)} — ${b.pct.toFixed(1)}% · ${fmtUsd(b.value)} · ${b.tickers.map(esc).join(", ")}"></div>`).join("")}
+    </div>
+    <div class="exp-key">${X.buckets.map(b=>`<div class="row">
+        <span class="dot" style="background:${b.colour}"></span>
+        <span class="nm">${esc(b.name)}</span>
+        <span class="pc">${b.pct.toFixed(1)}%</span>
+        <span class="dv">${fmtUsd(b.value)} · ${b.tickers.map(esc).join(", ")}</span>
+      </div>`).join("")}</div>
+    ${flags.map(f=>`<div class="exp-flag"><span class="ic">Note</span><span>${f}</span></div>`).join("")}
+  </div>`;
+}
+
+const MCOL_HINT = {
+  monitor: "<b>Monitor</b> — what moved, over each window, and where the price sits against its moving averages.",
+  review:  "<b>Review</b> — what you own, what it is worth, what it made, and how much of the portfolio it is."
+};
+function renderModeBar(){
+  const seg = $("#mcolSeg"); if(!seg) return;
+  seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.mcols===STATE.mcols)));
+  const hint = $("#mcolHint"); if(hint) hint.innerHTML = MCOL_HINT[STATE.mcols] || "";
+}
+
+function renderMetrics(){
+  renderModeBar();
+  const bm=metricsFor(CFG.benchmark), bp=bm?bm.period:null;
+  const pLbl=STATE.period;
+  /* Name the window in the header. A column called just "Since review" when no review has ever
+     been logged would be quietly lying about where the number starts. */
+  const rv = reviewFrom();
+  const revLbl = rv.logged ? rv.day.slice(5) : `${REVIEW_FALLBACK_DAYS}d`;
+  let rows = tickers().map(t=>({t,m:metricsFor(t)})).filter(r=>r.m)
+    .map(r=>{
+      const sig=signalFor(r.m,bp);
+      return {...r, sig, rel:(bp!=null&&r.m.period!=null)?r.m.period-bp:null};
+    });
+  if(STATE.sort.col){
+    const c=STATE.sort.col, d=STATE.sort.dir;
+    rows.sort((a,b)=>{
+      const col=MCOL_DEFS[c];
+      const get=r => col && col.get ? col.get(r)
+                   : c==="ticker" ? r.t : c==="rel" ? r.rel
+                   : c==="score" ? (r.sig ? r.sig.score : null) : r.m[c];
+      const av=get(a), bv=get(b);
+      if(typeof av==="string") return d*av.localeCompare(bv);
+      const an=(av==null||!isFinite(av))?-Infinity:av, bn=(bv==null||!isFinite(bv))?-Infinity:bv;
+      return d*(an-bn);
+    });
+  }
+  const head = `<thead><tr>${mcols().map(c=>{
+    const on = STATE.sort.col===c.k;
+    return `<th class="sortable ${c.lft?"lft":""} ${on?"sorted":""}" data-col="${c.k}" title="${esc(c.tip||"Sort by "+c.lbl)}">${
+      c.k==="rel" ? `vs S&amp;P (${pLbl})`
+      : (c.k==="sinceRev"||c.k==="sinceRevUsd") ? `${esc(c.lbl)}<span class="quiet"> ${esc(revLbl)}</span>`
+      : esc(c.lbl)}<span class="arw">${on?(STATE.sort.dir<0?"↓":"↑"):"↓"}</span></th>`;
+  }).join("")}</tr></thead>`;
+  // one scaler per heated column, built from the tracked stocks only — the benchmark is
+  // a reference line, not a peer, so it doesn't get a vote on where the extremes sit
+  const val = (r,k) => { const col=MCOL_DEFS[k];
+    return col && col.get ? col.get(r)
+         : k==="rel" ? r.rel : k==="score" ? (r.sig ? r.sig.score : null) : r.m[k]; };
+  const scalers = {};
+  for(const c of mcols()) if(c.heat) scalers[c.k] = heatScaler(rows.map(r=>val(r,c.k)), STATE.heatScale);
+
+  function cellsFor(row, isBench){
+    const {m, sig, rel} = row;
+    return mcols().slice(1).map(c=>{
+      /* the benchmark is a reference line, not a holding, so position columns stay empty for it */
+      const v = c.get ? (isBench ? null : c.get(row))
+              : c.k==="rel" ? rel : c.k==="score" ? null : m[c.k];
+      if(c.k==="score"){
+        if(isBench) return `<td class="lft">—</td>`;
+        if(!sig) return `<td class="lft"><span class="pill na" title="Leveraged or inverse ETF — rebalanced daily, so volatility decay drags it down regardless of the underlying index. Mean-reversion readings like &quot;oversold&quot; and &quot;bottom of its 52-week range&quot; are permanently true here and mean nothing, so no signal is shown.">n/a</span></td>`;
+        return `<td class="lft"><span class="pill ${sig.klass}" title="${esc(sig.why.join("; ")||"no strong readings")}">${sig.label}</span></td>`;
+      }
+      if(c.k==="rel" && isBench) return `<td>benchmark</td>`;
+      let text = c.fmt ? c.fmt(v) : (v==null?"–":v);
+      /* A column may annotate its own cell from the row — used to date a stale 1D reading. */
+      const sfx = (c.suffix && !isBench) ? c.suffix(row) : "";
+      const sfxTitle = sfx && c.suffixTip ? ` title="${esc(c.suffixTip(row))}"` : "";
+      if(sfx) text += ` <span class="asof"${sfxTitle}>${esc(sfx)}</span>`;
+      if(!c.heat) return `<td>${text}</td>`;
+      const style = heatStyle(scalers[c.k] ? scalers[c.k](v) : null, v);
+      return style ? `<td class="heat" style="${style}">${text}</td>`
+                   : `<td class="${STATE.heat==="off"?cls(v):""}">${text}</td>`;
+    }).join("");
+  }
+
+  const body = rows.map(({t,m,sig,rel})=>`<tr class="${isCharted(t)?"":"dim"}">
+      <td class="lft"><span class="tkcell"><span class="dot" style="background:${isCharted(t)?colorFor(t):"var(--grid)"}"></span>${esc(t)}${
+        m.fund?` <span class="tag" title="Mutual fund — priced once a day at NAV, after the close.">Fund</span>`:""}${
+        m.conv?` <span class="tag" title="${esc(m.exch||"Local")} listing, quoted in ${esc(m.ccy)} and converted to USD at each day's ECB reference rate${m.fx?` (latest ${m.fx.toFixed(4)})`:""}.">${esc(m.ccy)}→USD</span>`:""}</span></td>
+      ${cellsFor({t,m,sig,rel},false)}</tr>`).join("");
+
+  const bRow = bm ? `<tr class="bench">
+      <td class="lft"><span class="tkcell"><span class="dot" style="background:${cssVar('--bench')}"></span>${esc(CFG.benchmark)}</span></td>
+      ${cellsFor({t:CFG.benchmark,m:bm,sig:null,rel:null},true)}</tr>` : "";
+
+  /* Totals are built column-by-column off the ACTIVE set. The previous version emitted a fixed
+     run of four cells after a colspan, which silently slid the gain total under the Weight
+     column once the review set changed the column order — a total under the wrong heading is
+     worse than no total. Anything without a meaningful total gets an empty cell, and there is
+     deliberately no total of the percentage columns except Gain %, which is a real ratio of two
+     real totals; averaging per-holding returns across sizes this uneven would be noise.  */
+  const T = positions().length ? portfolioTotals() : null;
+  let fRow = "";
+  if(T && T.rows.length){
+    const cols = mcols();
+    const sinceUsd = T.rows.reduce((s,r)=>{
+      const c = changeSince(r.ticker, reviewFrom());
+      return s + (c==null ? 0 : r.value - r.value/(1+c/100));
+    }, 0);
+    const cell = (c,i) => {
+      if(i===0) return `<td class="lft"><b>Portfolio</b> <span class="quiet">${T.rows.length} holding${T.rows.length===1?"":"s"}</span></td>`;
+      switch(c.k){
+        case "sinceRevUsd": return `<td class="${cls(sinceUsd)}">${fmtUsd(sinceUsd)}</td>`;
+        case "costBase":    return `<td>${T.costBase?fmtUsd(T.costBase):"—"}</td>`;
+        case "mktValue":    return `<td><b>${fmtUsd(T.value)}</b></td>`;
+        case "weight":      return `<td>100%</td>`;
+        case "gl":          return `<td class="${cls(T.gl)}">${T.gl==null?"—":fmtUsd(T.gl)}</td>`;
+        case "glPct":       return `<td class="${cls(T.glPct)}">${T.glPct==null?"—":fmtPct(T.glPct)}</td>`;
+        default:            return `<td></td>`;
+      }
+    };
+    /* Monitor mode has no column worth totalling, and a footer row carrying nothing but the
+       word "Portfolio" is furniture. Only draw it when at least one cell has a number in it. */
+    const cells = cols.map(cell);
+    if(cells.slice(1).some(c=>c!=="<td></td>")) fRow = `<tfoot><tr>${cells.join("")}</tr></tfoot>`;
+  }
+  $("#metrics").innerHTML = head + "<tbody>" + body + bRow + "</tbody>" + fRow;
+  const funds = rows.filter(r=>r.m.fund), convs = rows.filter(r=>r.m.conv);
+  const note = $("#metricsNote"); const bits=[];
+  if(funds.length) bits.push(`<b>${funds.map(r=>esc(r.t)).join(", ")}</b> ${funds.length===1?"is a mutual fund":"are mutual funds"}:
+      one NAV per day, published after the close, so the 1D column is the last NAV change rather than an
+      intraday move, and there is no intraday data at all. Mid-session that reading is the
+      <em>previous</em> day's while a live-quoted ETF's is today's — which is why the 1D cell carries a small
+      grey date whenever the row is behind the rest of the table. Two funds tracking the same index
+      can look 1pp apart in that column purely because they are reporting different days. NAV is the raw published price — a distribution
+      (SWPPX pays one in December) drops it by the amount paid out, which shows up here as a one-day fall.`);
+  if(convs.length) bits.push(`<b>${convs.map(r=>esc(r.t)).join(", ")}</b> ${convs.length===1?"trades":"trade"} in
+      ${[...new Set(convs.map(r=>esc(r.m.ccy)))].join(" / ")} and ${convs.length===1?"is":"are"} converted to USD at
+      each day's ECB reference rate${convs.length===1&&convs[0].m.fx?` (latest ${convs[0].m.fx.toFixed(4)})`:""}, so
+      every figure in the row is what a dollar holder got — the currency move included. A local move and the
+      dollar figure can differ in size, and occasionally in sign.`);
+  if(T && T.rows.length){
+    const pbits = [];
+    if(CFG.positionsAsOf) pbits.push(`Share counts are a snapshot of ${esc(CFG.positionsSource||"the brokerage account")} taken ${esc(CFG.positionsAsOf)} — nothing syncs them, so a trade needs telling. Market value is live.`);
+    if(T.unknownCost.length) pbits.push(`<b>${T.unknownCost.map(esc).join(", ")}</b> ${T.unknownCost.length===1?"has":"have"} no cost basis in Schwab, so ${T.unknownCost.length===1?"it is":"they are"} left out of the cost total and the gain — but counted in the market value, because the shares are real. Schwab's own screen instead prints a 100% gain there, which is what treating a missing cost as zero looks like.`);
+    if(T.missing.length) pbits.push(`No price loaded for <b>${T.missing.map(esc).join(", ")}</b>, so ${T.missing.length===1?"it is":"they are"} missing from the portfolio total.`);
+    bits.push(...pbits);
+  }
+  if(bits.length){ note.style.display=""; note.innerHTML = bits.join("<br><br>"); }
+  else note.style.display="none";
+  renderHeatLegend();
+  $("#metrics").querySelectorAll("th").forEach(th=>{
+    if(MCOL_DEFS[th.dataset.col] && MCOL_DEFS[th.dataset.col].heat) th.classList.add("heat-col");
+  });
+  $("#metrics").querySelectorAll("th.sortable").forEach(th=>{
+    th.onclick=()=>{
+      const c=th.dataset.col;
+      if(STATE.sort.col===c) STATE.sort.dir*=-1;
+      else STATE.sort={col:c, dir: c==="ticker" ? 1 : -1};
+      renderMetrics();
+    };
+  });
+}
+
+function renderHeatLegend(){
+  const el=$("#heatLegend");
+  if(STATE.heat==="off"){ el.innerHTML=""; return; }
+  const stops=[];
+  for(let i=0;i<=40;i++){
+    const t=-1+2*i/40;
+    const m=(heatStyle(t).match(/rgb\((\d+),(\d+),(\d+)\)/));
+    stops.push(m?`rgb(${m[1]},${m[2]},${m[3]})`:"var(--surface-1)");
+  }
+  const peers = STATE.heatScale==="peers";
+  const mode = isDarkMode() ? "dark" : "light";
+  el.innerHTML=`<div class="heat-key">
+    <span class="lbl">${peers?"Worst in column":"Biggest fall"}</span>
+    <span class="bar" style="background:linear-gradient(to right,${stops.join(",")})"></span>
+    <span class="lbl">${peers?"Best in column":"Biggest gain"}</span>
+    <span class="outkey"><i style="${OUTLIER_STYLE.pos[STATE.heat][mode]}"></i>&nbsp;≥&nbsp;+${OUTLIER_POS}%</span>
+    <span class="outkey"><i style="${OUTLIER_STYLE.neg[STATE.heat][mode]}"></i>&nbsp;≤&nbsp;${OUTLIER_NEG}%</span>
+    <span class="exp">${peers
+      ? "Ranked within each column — the weakest name is dark red and the strongest dark green even if both are up."
+      : "0% sits in the middle. Colour saturates at each column’s 85th-percentile move, so one outlier can’t flatten the rest."
+    } ${STATE.mcols==="review"
+      ? "Only the two return columns are shaded — a dollar figure or a share count isn’t better for being bigger, and a weight isn’t better for being either."
+      : "Price isn’t shaded — it isn’t better for being higher."}</span>
+  </div>`;
+}
+
+/* ============================ settings UI ============================ */
+function renderSettings(){
+  /* Every bucket already in use, plus any declared in exposureOrder but not yet used, so a
+     bucket doesn't disappear from the menu the moment its last holding is retagged. */
+  const expChoices = [...new Set([...(CFG.exposureOrder||[]),
+    ...CFG.watchlist.map(w=>w.exposure).filter(Boolean)])];
+  $("#wlCount").textContent = `(${CFG.watchlist.length} tracked · ${STATE.slots.size}/${MAX_CHARTED} on the chart)`;
+  $("#benchName").textContent = CFG.benchmark;
+  $("#wlList").innerHTML = CFG.watchlist.map((w,i)=>`
+    <div class="wl-row">
+      <span class="dot" style="background:${isCharted(w.ticker)?colorFor(w.ticker):"var(--grid)"}"></span>
+      <span class="t">${esc(w.ticker)}</span>
+      <span class="n">${esc(w.name||"")}</span>
+      <select class="exp-pick ${w.exposure?"":"none"}" data-exp="${esc(w.ticker)}"
+        title="Which exposure bucket this holding rolls up into on the Review panel. Untagged holdings are still counted in the portfolio total — they just can't be grouped.">
+        ${["", ...expChoices].map(o=>`<option value="${esc(o)}"${(w.exposure||"")===o?" selected":""}>${
+          o ? esc(o) : "— untagged —"}</option>`).join("")}
+        <option value="__new">+ New bucket…</option>
+      </select>
+      <button class="btn sm ghost" data-rm="${esc(w.ticker)}" title="Stop tracking">✕</button>
+    </div>`).join("") || `<div class="hint" style="margin:0">No stocks tracked yet.</div>`;
+  /* Tagging is a per-holding choice, so it belongs on the holding's own row rather than in a
+     separate mapping screen. Picking "+ New bucket…" appends to CFG.exposureOrder, which is
+     what fixes the bucket's colour — so a new bucket goes on the END of the order and never
+     shifts the hue of an existing one. */
+  $("#wlList").querySelectorAll("[data-exp]").forEach(sel=>sel.onchange=()=>{
+    const w = CFG.watchlist.find(x=>x.ticker===sel.dataset.exp); if(!w) return;
+    let v = sel.value;
+    if(v==="__new"){
+      const name = (prompt("Name the new exposure bucket (e.g. \u201cREITs\u201d, \u201cCash\u201d):")||"").trim();
+      if(!name){ renderSettings(); return; }
+      v = name;
+      CFG.exposureOrder = CFG.exposureOrder || [];
+      if(!CFG.exposureOrder.includes(v)) CFG.exposureOrder.push(v);
+    }
+    if(v) w.exposure = v; else delete w.exposure;
+    saveConfig(); renderSettings(); renderExposure();
+  });
+  $("#wlList").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.rm;
+    CFG.watchlist = CFG.watchlist.filter(w=>w.ticker!==t);
+    CFG.alertRules.forEach(r=>{ if(r.scope===t) r.scope="*"; });
+    chartOff(t);
+    if(STATE.single===t){ STATE.single=null; STATE.view="compare"; syncViewSeg(); }
+    saveConfig(); renderAll();
+  });
+
+  const opts = ['<option value="*">Any tracked stock</option>']
+    .concat(tickers().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`)).join("");
+  $("#ruleList").innerHTML = CFG.alertRules.map(r=>`
+    <div class="rule ${r.enabled?"":"off"}" data-id="${esc(r.id)}">
+      <input type="checkbox" ${r.enabled?"checked":""} data-f="enabled" title="Enable / mute" style="accent-color:var(--s1)">
+      <select data-f="scope">${opts.replace(`value="${esc(r.scope)}"`,`value="${esc(r.scope)}" selected`)}</select>
+      <select data-f="direction">
+        <option value="drop"${r.direction==="drop"?" selected":""}>drops</option>
+        <option value="rise"${r.direction==="rise"?" selected":""}>rises</option>
+        <option value="any"${r.direction==="any"?" selected":""}>moves</option>
+      </select>
+      <input type="number" data-f="pct" value="${r.pct}" min="0.1" step="0.5">% over
+      <input type="number" data-f="days" value="${r.days}" min="1" step="1">
+      <select data-f="unit">
+        <option value="trading"${(r.unit||"trading")==="trading"?" selected":""}>trading days</option>
+        <option value="calendar"${r.unit==="calendar"?" selected":""}>calendar days</option>
+      </select>
+      <button class="x" data-del title="Delete rule">✕</button>
+    </div>`).join("") || `<div class="hint" style="margin:0">No rules yet — add one below.</div>`;
+
+  $("#ruleList").querySelectorAll(".rule").forEach(row=>{
+    const r = CFG.alertRules.find(x=>x.id===row.dataset.id);
+    row.querySelectorAll("[data-f]").forEach(inp=>{
+      inp.addEventListener("change",()=>{
+        const f=inp.dataset.f;
+        if(f==="enabled"){ r.enabled=inp.checked; row.classList.toggle("off",!r.enabled); }
+        else if(f==="pct"||f==="days"){
+          const v=Math.max(f==="days"?1:0.1, +inp.value||0);
+          r[f] = f==="days" ? Math.round(v) : v;
+          inp.value = r[f];                    // normalise in place, don't rebuild the row
+        } else r[f]=inp.value;
+        // deliberately NOT calling renderSettings() — rebuilding the list mid-edit
+        // destroys focus and drops whatever the next field is holding.
+        saveConfig(); renderAlerts();
+      });
+    });
+    row.querySelector("[data-del]").onclick=()=>{
+      CFG.alertRules = CFG.alertRules.filter(x=>x.id!==r.id);
+      saveConfig(); renderSettings(); renderAlerts();
+    };
+  });
+}
+
+/* ticker search.
+   A plain US stock or ETF comes back as {t:"s"|"e", s:"AAPL"}. Everything else — mutual funds
+   and non-US listings alike — comes back exchange-prefixed, {t:"sy", st:"m"|"s"|"e",
+   s:"mutf/SWPPX" | "epa/QDT", id:"MUTF-SWPPX" | "EPA-QDT"}, which the old filter threw away
+   because of the slash. `id` is what the /q/ route wants; the prefix gives the currency. */
+const hitSym = x => { const s=String((x&&x.s)||""); return s.includes("/") ? s.split("/")[1] : s; };
+function classifyHit(x){
+  if(!x || !x.s) return null;
+  const s = String(x.s);
+  if(x.t==="s" || x.t==="e"){
+    if(s.includes("/")) return null;
+    return {sym:s.toUpperCase(), name:x.n||"", kind:x.t==="e"?"etf":"stock", currency:"USD"};
+  }
+  if(x.t!=="sy" || !x.id || !s.includes("/")) return null;
+  const [ex, tk] = s.split("/");
+  const ccy = EXCH_CCY[ex.toLowerCase()];
+  if(!ccy || !tk) return null;                       // unknown quote currency — don't guess
+  return {sym:tk.toUpperCase(), name:x.n||"", apiId:x.id,
+          kind: x.st==="m" ? "fund" : "listed", currency:ccy, exchange:ex.toUpperCase()};
+}
+const hitTag = h => !h ? ""
+  : h.kind==="fund"        ? "Fund"
+  : h.currency!=="USD"     ? `${h.currency}→USD`
+  : h.exchange==="OTC"     ? "OTC"        // thin ADR / F-share line — flag it, don't hide it
+  : "";
+let suggTimer=null, suggItems=[], suggHi=-1;
+function wireAdd(){
+  const inp=$("#addInput"), box=$("#sugg");
+  const close=()=>{ box.style.display="none"; suggItems=[]; suggHi=-1; };
+  inp.addEventListener("input",()=>{
+    clearTimeout(suggTimer);
+    const q=inp.value.trim();
+    if(q.length<1){ close(); return; }
+    suggTimer=setTimeout(async()=>{
+      try{
+        const r=await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+        const j=await r.json();
+        suggItems=(j.data||[]).filter(x=>!!classifyHit(x)).slice(0,8);
+        if(!suggItems.length){ close(); return; }
+        suggHi=0;
+        box.innerHTML=suggItems.map((x,i)=>{
+          const h=classifyHit(x), tag=hitTag(h);
+          return `<div class="${i===0?"hi":""}" data-i="${i}"><b>${esc(hitSym(x))}</b><span>${
+            esc(x.n||"")}${h.exchange&&h.currency!=="USD"?` · ${esc(h.exchange)}`:""}</span>${
+            tag?`<em class="tag" title="${esc(tag==="OTC"
+              ? "Over-the-counter line: these often trade only a handful of times a month, so the history comes back full of gaps."
+              : tag==="Fund" ? "Mutual fund — one NAV a day, struck after the close."
+              : `Quoted in ${h.currency}; converted to USD at each day's ECB reference rate.`)}">${esc(tag)}</em>`:""}</div>`;
+        }).join("");
+        box.style.display="block";
+        box.querySelectorAll("div[data-i]").forEach(d=>d.onclick=()=>pick(+d.dataset.i));
+      }catch(e){ close(); }
+    },220);
+  });
+  inp.addEventListener("keydown",e=>{
+    if(!suggItems.length){ if(e.key==="Enter"&&inp.value.trim()) addTicker(inp.value.trim().toUpperCase(),""); return; }
+    if(e.key==="ArrowDown"){e.preventDefault(); suggHi=(suggHi+1)%suggItems.length; hi();}
+    else if(e.key==="ArrowUp"){e.preventDefault(); suggHi=(suggHi-1+suggItems.length)%suggItems.length; hi();}
+    else if(e.key==="Enter"){e.preventDefault(); pick(suggHi);}
+    else if(e.key==="Escape") close();
+  });
+  inp.addEventListener("blur",()=>setTimeout(close,180));
+  function hi(){ box.querySelectorAll("div[data-i]").forEach((d,i)=>d.classList.toggle("hi",i===suggHi)); }
+  function pick(i){
+    const it=suggItems[i]; if(!it) return;
+    const h=classifyHit(it) || {};
+    addTicker(hitSym(it).toUpperCase(), it.n||"", h);
+    close(); inp.value="";
+  }
+}
+/* Typed by hand rather than picked from the list, so we don't yet know whether this is a
+   stock, an ETF or a fund. Ask the search endpoint for an exact ticker match. */
+async function resolveSymbol(sym){
+  const up = sym.toUpperCase();
+  try{
+    const r = await fetch(`${API}/search?q=${encodeURIComponent(sym)}`);
+    const j = await r.json();
+    const hits = (j.data||[]).map(classifyHit).filter(h=>h && h.sym===up);
+    // a US listing wins over a foreign one of the same name; conversion is a last resort
+    return hits.find(h=>h.currency==="USD" && !h.apiId)
+        || hits.find(h=>h.currency==="USD")
+        || hits[0] || null;
+  }catch(e){}
+  return null;   // fall through and let the plain /s/ route try its luck
+}
+async function addTicker(sym,name,meta){
+  sym = sym.toUpperCase().trim();
+  if(!sym) return;
+  if(CFG.watchlist.some(w=>w.ticker===sym)){ flash(`${sym} is already on your list.`); return; }
+  if(CFG.watchlist.length>=MAX_WATCH){ flash(`You're at the ${MAX_WATCH}-stock limit — remove one first.`); return; }
+  let m = (meta && (meta.apiId || meta.kind)) ? meta : await resolveSymbol(sym);
+  const entry = {ticker:sym, name:(m&&m.name)||name||sym};
+  if(m && m.apiId) entry.apiId = m.apiId;
+  if(m && m.kind==="fund") entry.kind = "fund";
+  if(m && m.currency && m.currency!=="USD"){ entry.currency = m.currency; if(m.exchange) entry.exchange = m.exchange; }
+  CFG.watchlist.push(entry);
+  chartOn(sym);                       // takes a colour slot if one is free; otherwise table-only
+  saveConfig(); renderSettings();
+  try{ await loadFx(); STATE.data[sym] = await fetchOne(sym); }
+  catch(e){
+    STATE.data[sym] = {err:String(e.message||e),bars:[],quote:null};
+    flash(`Couldn't load ${sym} — this data source covers US-listed stocks, ETFs and mutual funds only.`, true);
+  }
+  renderAll();
+}
+function flash(msg,isErr){
+  const b=document.createElement("div");
+  b.className="banner"+(isErr?" err":"");
+  b.textContent=msg;
+  $("#banners").appendChild(b);
+  setTimeout(()=>b.remove(),6000);
+}
+
+/* ============================ wiring ============================ */
+function seedCharted(){
+  STATE.slots.clear();
+  const saved = Array.isArray(CFG.charted) ? CFG.charted : [];
+  for(const t of saved) if(tickers().includes(t)) chartOn(t);
+  for(const t of tickers()){ if(STATE.slots.size>=MAX_CHARTED) break; chartOn(t); }
+}
+function syncViewSeg(){
+  $("#viewSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.view===STATE.view)));
+  const sel=$("#singleSel");
+  if(STATE.view==="single"){
+    sel.style.display="";
+    sel.innerHTML = tickers().map(t=>`<option value="${esc(t)}"${t===STATE.single?" selected":""}>${esc(t)}</option>`).join("");
+    if(!STATE.single || !tickers().includes(STATE.single)) STATE.single = tickers()[0]||null;
+    sel.value = STATE.single||"";
+  } else sel.style.display="none";
+}
+function renderAll(){
+  const p=PERIODS.find(x=>x.key===STATE.period);
+  renderTiles(); renderAlerts(); renderChart(); renderExposure(); renderMetrics(); renderSettings();
+  const single = STATE.view==="single" && STATE.single;
+  $("#chartTitle").textContent = single
+    ? (STATE.showBench && STATE.period!=="1D" ? `${STATE.single} vs ${CFG.benchmarkLabel} — ${p.label}` : `${STATE.single} — ${p.label} price`)
+    : `${p.label} performance`;
+  $("#chartNote").textContent = STATE.period==="1D"
+    ? "Today's move, one bar per stock. Intraday tick data isn't available from this source."
+    : single
+      ? (STATE.showBench
+          ? "Indexed to 0% at the start of the period so the stock and the S&P sit on one honest axis. Untick “Show S&P 500” for actual prices with moving averages."
+          : "Closing price with 50-day and 200-day moving averages.")
+      : "Indexed to 0% at the start of the period, so stocks at different price levels compare directly.";
+  const errs = Object.entries(STATE.data).filter(([k,v])=>v.err);
+  if(STATE.lastFetch) $("#subline").textContent =
+    `${CFG.watchlist.length} stocks vs ${CFG.benchmarkLabel} · updated ${STATE.lastFetch.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}` +
+    (errs.length?` · ${errs.length} failed to load`:"");
+}
+
+function init(){
+  $("#periodSeg").innerHTML = PERIODS.map(p=>
+    `<button data-p="${p.key}" aria-pressed="${p.key===STATE.period}">${p.label}</button>`).join("");
+  $("#periodSeg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    STATE.period=b.dataset.p;
+    $("#periodSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.p===STATE.period)));
+    renderAll();
+  });
+  $("#viewSeg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    STATE.view=b.dataset.view;
+    if(STATE.view==="single" && !STATE.single) STATE.single=tickers()[0]||null;
+    syncViewSeg(); renderAll();
+  });
+  $("#singleSel").addEventListener("change",e=>{ STATE.single=e.target.value; renderAll(); });
+  $("#benchChk").addEventListener("change",e=>{ STATE.showBench=e.target.checked; renderAll(); });
+  $("#tableToggle").addEventListener("click",()=>{
+    STATE.tableView=!STATE.tableView;
+    $("#tableToggle").textContent = STATE.tableView ? "◫ Chart view" : "▤ Table view";
+    renderChart();
+  });
+  $("#heatSeg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    STATE.heat=b.dataset.heat;
+    $("#heatSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.heat===STATE.heat)));
+    $("#scaleSeg").style.opacity = STATE.heat==="off" ? ".4" : "1";
+    $("#scaleSeg").style.pointerEvents = STATE.heat==="off" ? "none" : "";
+    saveConfig(); renderMetrics();
+  });
+  $("#scaleSeg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    STATE.heatScale=b.dataset.scale;
+    $("#scaleSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.scale===STATE.heatScale)));
+    saveConfig(); renderMetrics();
+  });
+  $("#refreshBtn").addEventListener("click",loadAll);
+  $("#themeBtn").addEventListener("click",()=>{
+    const cur=document.documentElement.getAttribute("data-theme");
+    const isDark = cur==="dark" || (cur!=="light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", isDark?"light":"dark");
+    renderAll();
+  });
+  $("#addRule").addEventListener("click",()=>{
+    CFG.alertRules.push({id:"r"+Date.now().toString(36), scope:"*", direction:"drop", pct:10, days:5, unit:"trading", enabled:true});
+    saveConfig(); renderSettings(); renderAlerts();
+  });
+  $("#changeBench").addEventListener("click",async()=>{
+    const v=prompt("Benchmark ticker (SPY = S&P 500 ETF, QQQ = Nasdaq 100, DIA = Dow):", CFG.benchmark);
+    if(!v) return;
+    CFG.benchmark=v.toUpperCase().trim();
+    CFG.benchmarkLabel = CFG.benchmark==="SPY" ? "S&P 500" : CFG.benchmark;
+    saveConfig(); await loadAll();
+  });
+  $("#dlConfig").addEventListener("click",()=>{
+    const blob=new Blob([JSON.stringify(exportConfig(),null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="config.json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  });
+  /* Import is the other half of export. The watchlist the page actually uses lives in this
+     browser's localStorage, so a config.json that Claude edited in the folder has no way in
+     without this — and re-typing 30-odd holdings by hand is how a tracker goes stale. */
+  $("#loadConfig").addEventListener("click",()=>$("#loadConfigFile").click());
+  $("#loadConfigFile").addEventListener("change",async e=>{
+    const f=e.target.files && e.target.files[0];
+    e.target.value="";                 // so picking the same file twice still fires
+    if(!f) return;
+    let c;
+    try{ c=JSON.parse(await f.text()); }
+    catch(err){ return flash("That file isn't valid JSON — "+err.message,true); }
+    if(!c || !Array.isArray(c.watchlist) || !c.watchlist.length)
+      return flash("That file has no watchlist array, so it isn't a tracker config.",true);
+    const bad=c.watchlist.filter(w=>!w || typeof w.ticker!=="string" || !w.ticker.trim());
+    if(bad.length) return flash(`${bad.length} watchlist ${bad.length===1?"entry":"entries"} have no ticker — nothing imported.`,true);
+    if(!confirm(`Replace the current ${CFG.watchlist.length}-holding watchlist and all alert rules with the ${c.watchlist.length} in ${f.name}?`)) return;
+    CFG = Object.assign(structuredClone(DEFAULT_CONFIG), c);
+    STATE.single=null; STATE.group="All"; STATE.slots.clear();
+    STATE.sort={col:null,dir:-1};
+    if(CFG.display){
+      if(["gr","off"].includes(CFG.display.heat)) STATE.heat=CFG.display.heat;   // a saved "cvd" falls back to "gr"
+      if(["zero","peers"].includes(CFG.display.heatScale)) STATE.heatScale=CFG.display.heatScale;
+    if(["monitor","review"].includes(CFG.display.mcols)) STATE.mcols=CFG.display.mcols;
+    }
+    seedCharted(); saveConfig(); syncViewSeg();
+    $("#heatSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.heat===STATE.heat)));
+    $("#scaleSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.scale===STATE.heatScale)));
+    flash(`Loaded ${CFG.watchlist.length} holdings from ${f.name}.`);
+    await loadAll();
+  });
+  $("#copyConfig").addEventListener("click",async()=>{
+    try{ await navigator.clipboard.writeText(JSON.stringify(exportConfig(),null,2)); flash("Config copied — paste it to Claude to sync the monitor."); }
+    catch(e){ flash("Couldn't copy automatically. Use “Save config.json” instead.",true); }
+  });
+  /* Logs today against `reviewDates`, which is what the "Since review" column measures from.
+     The column keeps reading from the PREVIOUS review until the next one is logged, so clicking
+     this doesn't blank the number you just came to look at. */
+  $("#markReviewed").addEventListener("click",()=>{
+    const today = isoDay(new Date());
+    CFG.reviewDates = CFG.reviewDates || [];
+    if(CFG.reviewDates.includes(today)) return flash("Today is already logged as a review.");
+    const prev = reviewFrom();
+    CFG.reviewDates.push(today); CFG.reviewDates.sort();
+    saveConfig(); renderExposure(); renderMetrics();
+    flash(prev.logged
+      ? `Logged. “Since review” still measures from ${prev.day} until your next one.`
+      : `Logged ${today}. Your next review will measure from here instead of the 60-day fallback.`);
+  });
+  $("#resetConfig").addEventListener("click",()=>{
+    if(!confirm("Reset the watchlist and all alert rules to defaults?")) return;
+    CFG=structuredClone(DEFAULT_CONFIG); STATE.single=null; STATE.view="compare";
+    seedCharted(); saveConfig(); syncViewSeg(); loadAll();
+  });
+  // seed the charted set: saved selection first, then fill from the top of the watchlist
+  seedCharted();
+  if(CFG.display){
+    if(["gr","off"].includes(CFG.display.heat)) STATE.heat=CFG.display.heat;   // a saved "cvd" falls back to "gr"
+    if(["zero","peers"].includes(CFG.display.heatScale)) STATE.heatScale=CFG.display.heatScale;
+    if(["monitor","review"].includes(CFG.display.mcols)) STATE.mcols=CFG.display.mcols;
+  }
+  $("#mcolSeg").querySelectorAll("button").forEach(b=>{
+    b.onclick=()=>{
+      if(STATE.mcols===b.dataset.mcols) return;
+      STATE.mcols=b.dataset.mcols;
+      /* a sort on a column the new set doesn't have would silently do nothing */
+      if(STATE.sort.col && !MCOL_SETS[STATE.mcols].includes(STATE.sort.col)) STATE.sort={col:null,dir:-1};
+      saveConfig(); renderExposure(); renderMetrics();   // renderMetrics -> renderModeBar syncs the pills
+    };
+  });
+  $("#heatSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.heat===STATE.heat)));
+  $("#scaleSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.scale===STATE.heatScale)));
+  wireAdd();
+  syncViewSeg();
+  if(!storageOK) flash("This browser is blocking local storage, so settings won't persist between visits. Use “Save config.json” to keep them.",true);
+
+  let rt=null;
+  addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(renderChart,140); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>renderAll());
+
+  loadAll();
+  setInterval(()=>{ if(!document.hidden) loadAll(); }, 5*60*1000);
+}
+/* ==================== first-visit note ====================
+   Shared build. Everything this page knows lives in this browser's
+   localStorage — the watchlist, the alert rules, any share counts typed into
+   Settings. Nothing is uploaded, and no visitor can see or change another's.
+   ========================================================== */
+if(FIRST_VISIT){
+  document.addEventListener("DOMContentLoaded", () => {
+    const wrap = document.querySelector(".wrap"); if(!wrap) return;
+    const n = document.createElement("div");
+    n.setAttribute("role","note");
+    n.style.cssText = "border:1px solid var(--border,#ccc);border-radius:11px;padding:14px 16px;" +
+      "margin:0 0 18px;font-size:13.5px;line-height:1.55;display:flex;gap:14px;align-items:flex-start;" +
+      "background:var(--plane,#f7f7f5)";
+    n.innerHTML =
+      '<div style="flex:1">' +
+        '<b>This copy is yours.</b> Prices are live for everyone, but the watchlist and alert rules ' +
+        'are per-browser. Scroll to <b>Settings</b> at the bottom to swap in your own tickers and ' +
+        'thresholds — they save here automatically and will be waiting next time you visit. ' +
+        'Nothing you change is visible to anyone else.' +
+        '<div style="margin-top:7px;opacity:.75">Clearing your browser data wipes them, so use ' +
+        '<b>Save config.json</b> in Settings if you want a backup or want the same list on another device.</div>' +
+      '</div>' +
+      '<button type="button" style="flex:0 0 auto;background:none;border:0;font-size:19px;line-height:1;' +
+        'cursor:pointer;color:inherit;opacity:.55;padding:0 2px" aria-label="Dismiss">&times;</button>';
+    n.querySelector("button").onclick = () => n.remove();
+    wrap.insertBefore(n, wrap.firstChild);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
