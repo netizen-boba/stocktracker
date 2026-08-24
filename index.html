@@ -545,7 +545,11 @@ const DEFAULT_CONFIG = {
   display: {heat:"gr", heatScale:"peers", mcols:"monitor"}
 };
 
-const LS_KEY = "stockTracker.config.v1";
+/* Distinct from the personal build's key on purpose. Browser storage is scoped to the
+   ORIGIN (https://netizen-boba.github.io), not to the path or the repo — so every Pages
+   site under that account shares one storage area. Same key meant this copy read and
+   overwrote the personal tracker's saved watchlist. A separate key keeps them apart. */
+const LS_KEY = "stockTracker.shared.v1";
 /* Captured before anything writes, so the welcome note shows once and never again. */
 const FIRST_VISIT = (()=>{ try { return !localStorage.getItem(LS_KEY); } catch(e){ return false; } })();
 let storageOK = true;
