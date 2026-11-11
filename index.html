@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
+  <meta name="robots" content="noindex,nofollow">
 <title>Stock Tracker</title>
 <style>
 :root{
@@ -303,19 +303,6 @@ details.settings[open] > summary::before{transform:rotate(90deg)}
   padding:3px 5px;font-size:11.8px;color:var(--text-secondary);max-width:170px;flex:none;
 }
 .wl-row select.exp-pick.none{color:var(--muted);font-style:italic}
-.wl-row input.pos{
-  background:var(--plane);border:1px solid var(--border);border-radius:6px;
-  padding:3px 6px;font-size:11.8px;color:var(--text-secondary);width:76px;flex:none;
-  -moz-appearance:textfield;
-}
-.wl-row input.pos::-webkit-outer-spin-button,
-.wl-row input.pos::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.wl-row input.pos:placeholder-shown{font-style:italic;color:var(--muted)}
-/* Narrow screens: let the row wrap rather than crushing the company name to nothing. */
-@media (max-width:760px){
-  .wl-row{flex-wrap:wrap}
-  .wl-row .n{min-width:110px}
-}
 .addbox{position:relative;margin-top:10px;display:flex;gap:8px}
 .addbox input{
   flex:1;background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;
@@ -366,6 +353,7 @@ footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;borde
   <div class="hdr-actions">
     <button class="btn" id="themeBtn" title="Toggle light / dark">◐ Theme</button>
     <button class="btn" id="refreshBtn">↻ Refresh</button>
+    <button class="btn" id="unlockBtn">🔒 Holdings</button>
   </div>
 </header>
 
@@ -469,10 +457,6 @@ footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;borde
     <div class="set-grid">
       <div class="set-sec">
         <h3>Tracked stocks <span id="wlCount" style="text-transform:none;letter-spacing:0"></span></h3>
-        <div class="hint" style="margin:2px 0 8px">Fill in <b>Shares</b> to see this holding on the
-          <b>Review</b> tab of the metrics table — value, portfolio weight and move since your last
-          review. Add <b>Cost/sh</b> too and it works out gain/loss. Both are optional, and both are
-          stored only in this browser.</div>
         <div id="wlList"></div>
         <div class="addbox">
           <input id="addInput" placeholder="Add a ticker or company name…" autocomplete="off">
@@ -480,7 +464,7 @@ footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;borde
         </div>
         <div class="hint">US stocks, ETFs and mutual funds (try <code>SWPPX</code>) — funds are marked
           <span class="tag">Fund</span> and price once a day at NAV. Non-US listings work too
-          (<code>ASML</code> finds the Amsterdam line) and are marked <span class="tag">EUR→USD</span>:
+          (<code>Quadient</code> finds the Paris line) and are marked <span class="tag">EUR→USD</span>:
           their whole history is converted to dollars at each day's ECB rate, so the numbers include
           the currency move.
           Track as many as you like — the chart holds 8 at a time so the colours stay
@@ -519,7 +503,7 @@ footer{color:var(--muted);font-size:11.8px;margin-top:26px;line-height:1.6;borde
 </div>
 
 <footer>
-  Prices and fundamentals from stockanalysis.com, fetched live by your browser. Daily closes;
+  Prices and fundamentals from stockanalysis.com, fetched live via a Cloudflare proxy. Daily closes;
   the latest point is today's quote and updates through the session. Mutual funds are the exception —
   one NAV a day, published after the close, and no intraday data. Non-US listings are converted
   to USD at the ECB's daily reference rate (via frankfurter.dev), so their returns include the
@@ -539,21 +523,28 @@ const DEFAULT_CONFIG = {
   benchmark: "SPY",
   benchmarkLabel: "S&P 500",
   groups: ["Held", "Watch"],
-  exposureOrder: ["S&P 500 index", "Nasdaq 100", "US single stocks", "International equity", "Gold"],
+  exposureOrder: ["S&P 500 index", "Nasdaq 100", "US single stocks", "International equity", "Gold", "Bitcoin"],
   reviewDates: [],
   positionsAsOf: null,
   positionsSource: null,
   watchlist: [
-    {ticker:"IVV", name:"iShares Core S&P 500 ETF", group:"Watch", exposure:"S&P 500 index", tracks:"S&P 500"},
-    {ticker:"QQQ", name:"Invesco QQQ Trust Series I", group:"Watch", exposure:"Nasdaq 100", tracks:"Nasdaq 100"},
-    {ticker:"SCHF", name:"Schwab International Equity ETF", group:"Watch", exposure:"International equity", tracks:"FTSE Developed ex-US"},
-    {ticker:"GLD", name:"SPDR Gold Shares", group:"Watch", exposure:"Gold"},
-    {ticker:"AAPL", name:"Apple Inc.", group:"Watch", exposure:"US single stocks"},
-    {ticker:"MSFT", name:"Microsoft Corporation", group:"Watch", exposure:"US single stocks"},
-    {ticker:"NVDA", name:"NVIDIA Corporation", group:"Watch", exposure:"US single stocks"},
-    {ticker:"AMZN", name:"Amazon.com, Inc.", group:"Watch", exposure:"US single stocks"}
+    {ticker:"IVV", name:"iShares Core S&P 500 ETF", group:"Held", exposure:"S&P 500 index", tracks:"S&P 500"},
+    {ticker:"QQQ", name:"Invesco QQQ Trust Series I", group:"Held", exposure:"Nasdaq 100", tracks:"Nasdaq 100"},
+    {ticker:"NVDA", name:"NVIDIA Corporation", group:"Held", exposure:"US single stocks"},
+    {ticker:"SWPPX", name:"Schwab S&P 500 Index Fund", group:"Held", exposure:"S&P 500 index", tracks:"S&P 500", apiId:"MUTF-SWPPX", kind:"fund"},
+    {ticker:"BAR", name:"GraniteShares Gold Shares", group:"Held", exposure:"Gold"},
+    {ticker:"SCHF", name:"Schwab International Equity ETF", group:"Held", exposure:"International equity", tracks:"FTSE Developed ex-US"},
+    {ticker:"IBIT", name:"iShares Bitcoin Trust ETF", group:"Held", exposure:"Bitcoin"},
+    {ticker:"INTC", name:"Intel Corporation", group:"Held", exposure:"US single stocks"},
+    {ticker:"TQQQ", name:"ProShares UltraPro QQQ", group:"Held", exposure:"Nasdaq 100", tracks:"Nasdaq 100 (3x)"},
+    {ticker:"SKIL", name:"Skillsoft Corp.", group:"Held", exposure:"US single stocks"},
+    {ticker:"TSLA", name:"Tesla, Inc.", group:"Watch", exposure:"US single stocks"},
+    {ticker:"CSCO", name:"Cisco Systems, Inc.", group:"Watch", exposure:"US single stocks"},
+    {ticker:"SPCX", name:"Space Exploration Technologies Corp.", group:"Watch", exposure:"US single stocks"},
+    {ticker:"SQQQ", name:"ProShares UltraPro Short QQQ", group:"Watch", exposure:"Nasdaq 100", tracks:"Nasdaq 100 (inverse)"},
+    {ticker:"QDT", name:"Quadient S.A.", group:"Watch", exposure:"International equity", apiId:"EPA-QDT", currency:"EUR", exchange:"EPA"}
   ],
-  charted: ["IVV", "QQQ", "SCHF", "GLD", "AAPL", "MSFT", "NVDA", "AMZN"],
+  charted: ["BAR", "TQQQ", "SKIL", "NVDA", "TSLA", "INTC", "CSCO", "QDT"],
   alertRules: [
     {id:"r1", scope:"*", direction:"drop", pct:5,  days:3,  unit:"trading",  enabled:true},
     {id:"r2", scope:"*", direction:"any",  pct:10, days:30, unit:"calendar", enabled:true}
@@ -562,13 +553,7 @@ const DEFAULT_CONFIG = {
   display: {heat:"gr", heatScale:"peers", mcols:"monitor"}
 };
 
-/* Distinct from the personal build's key on purpose. Browser storage is scoped to the
-   ORIGIN (https://netizen-boba.github.io), not to the path or the repo — so every Pages
-   site under that account shares one storage area. Same key meant this copy read and
-   overwrote the personal tracker's saved watchlist. A separate key keeps them apart. */
-const LS_KEY = "stockTracker.shared.v1";
-/* Captured before anything writes, so the welcome note shows once and never again. */
-const FIRST_VISIT = (()=>{ try { return !localStorage.getItem(LS_KEY); } catch(e){ return false; } })();
+const LS_KEY = "stockTracker.config.v1";
 let storageOK = true;
 try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ storageOK = false; }
 
@@ -601,8 +586,8 @@ function saveConfig(){
   if(!storageOK) return;
   try{ localStorage.setItem(LS_KEY, JSON.stringify(exportConfig())); }catch(e){}
 }
-/* Tickers are grouped by whatever labels are in CFG.groups — "Held" for anything you own,
-   "Watch" for anything you only follow. The order in CFG.groups wins; anything
+/* Holdings are grouped by the Schwab account they sit in ("Held" for what sits in the Schwab account, "Watch" for what does not),
+   plus "Watch" for tickers followed but not held. The order in CFG.groups wins; anything
    that turns up only in the watchlist is appended so a hand-typed group still shows. */
 function groupList(){
   const seen=[], have=new Set();
@@ -626,8 +611,8 @@ function exportConfig(){
     benchmark:CFG.benchmark,
     benchmarkLabel:CFG.benchmarkLabel,
     groups:groupList(),
-    positionsAsOf:CFG.positionsAsOf||null,
-    positionsSource:CFG.positionsSource||null,
+    positionsAsOf:null,
+    positionsSource:null,
     /* apiId / kind / leveraged must survive a save — apiId is the only way back to a
        mutual fund's data, and a hand-set `leveraged` is a deliberate override. */
     watchlist:CFG.watchlist.map(w=>{
@@ -636,8 +621,8 @@ function exportConfig(){
       if(w.exposure) o.exposure=w.exposure;
       if(w.tracks) o.tracks=w.tracks;
       /* a position is data, not a preference — losing it silently would empty the portfolio row */
-      if(isFinite(w.shares)) o.shares=+w.shares;
-      if("cost" in w) o.cost = isFinite(w.cost) ? +w.cost : null;
+      /* published build: holdings are never written to localStorage, so an
+         unlocked session does not leave the portfolio behind on the device. */
       if(w.apiId) o.apiId=w.apiId;
       if(w.kind)  o.kind=w.kind;
       if(w.currency && w.currency!=="USD") o.currency=w.currency;
@@ -664,7 +649,10 @@ const PERIODS = [
   {key:"12M", label:"12M", days:365}
 ];
 const SERIES_VARS = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
-const API = "https://stockanalysis.com/api";
+/* Since Nov 2026 stockanalysis.com rejects (503) requests sent straight from another website,
+   so data goes through a small Cloudflare Worker (worker.js) that fetches it server-side and
+   adds CORS headers. Replace the URL below with your Worker's address. */
+const API = "https://stock-proxy.YOUR-SUBDOMAIN.workers.dev/api";
 
 /* stockanalysis carries no exchange rates, so a non-US listing is converted with the ECB's
    daily reference rates (frankfurter.dev, a thin free wrapper over the ECB's own series —
@@ -1623,9 +1611,9 @@ const MCOL_DEFS = {
     fmt:v=>v==null?"—":fmtUsd(v),
     tip:"What that price move was worth in dollars on the shares you hold NOW. It is not realised P&L: anything you bought or sold inside the window is not accounted for."},
   shares:  {k:"shares", lbl:"Shares",  get:r=>{const p=positionOf(r.t); return p?+p.shares:null;},
-    fmt:v=>v==null?"—":fmtSh(v), tip:"Shares you have entered for this ticker in Settings. Em dash means it is watched, not owned."},
+    fmt:v=>v==null?"—":fmtSh(v), tip:"Shares held, from the Schwab account snapshot. Em dash means the ticker is watched, not owned."},
   costBase:{k:"costBase", lbl:"Cost basis", get:r=>{const p=positionOf(r.t); return (p && p.cost!=null && isFinite(p.cost)) ? +p.shares*+p.cost : null;},
-    fmt:v=>v==null?"—":fmtUsd(v), tip:"Shares × cost per share. Em dash where no cost has been entered — a missing cost is not a zero cost, so no total is invented for it."},
+    fmt:v=>v==null?"—":fmtUsd(v), tip:"Shares × cost per share. Em dash where Schwab reports no cost basis — a missing cost is not a zero cost, so no total is invented for it."},
   mktValue:{k:"mktValue", lbl:"Market value", get:r=>{const p=positionOf(r.t); return (p && r.m) ? +p.shares*r.m.px : null;},
     fmt:v=>v==null?"—":fmtUsd(v), tip:"Shares × current price. For a non-US listing the price is already converted to USD."},
   weight:  {k:"weight", lbl:"Weight", get:r=>{const p=positionOf(r.t); if(!p||!r.m) return null;
@@ -2048,12 +2036,6 @@ function renderSettings(){
           o ? esc(o) : "— untagged —"}</option>`).join("")}
         <option value="__new">+ New bucket…</option>
       </select>
-      <input class="pos" type="number" inputmode="decimal" step="any" min="0" data-sh="${esc(w.ticker)}"
-        value="${isFinite(w.shares)?w.shares:""}" placeholder="Shares"
-        title="How many shares you own. Leave blank if you only watch this one.">
-      <input class="pos" type="number" inputmode="decimal" step="any" min="0" data-co="${esc(w.ticker)}"
-        value="${(w.cost!=null&&isFinite(w.cost))?w.cost:""}" placeholder="Cost/sh"
-        title="What you paid per share. Optional — without it the Review tab still shows value and weight, just not gain/loss.">
       <button class="btn sm ghost" data-rm="${esc(w.ticker)}" title="Stop tracking">✕</button>
     </div>`).join("") || `<div class="hint" style="margin:0">No stocks tracked yet.</div>`;
   /* Tagging is a per-holding choice, so it belongs on the holding's own row rather than in a
@@ -2072,24 +2054,6 @@ function renderSettings(){
     }
     if(v) w.exposure = v; else delete w.exposure;
     saveConfig(); renderSettings(); renderExposure();
-  });
-  /* Shares and cost are independent: shares alone gives value, weight and "since review";
-     adding cost switches on gain/loss. Blank means absent, not zero — a missing cost basis is
-     not a cost of nothing, so the Review tab shows an em dash instead of inventing a gain.
-     Clearing shares clears cost with it, since a cost basis for something you don't own is
-     meaningless. The group flips with ownership so the Held / Watch filter stays honest. */
-  $("#wlList").querySelectorAll("[data-sh]").forEach(inp=>inp.onchange=()=>{
-    const w = CFG.watchlist.find(x=>x.ticker===inp.dataset.sh); if(!w) return;
-    const v = parseFloat(inp.value);
-    if(isFinite(v) && v>0){ w.shares=v; w.group="Held"; }
-    else { delete w.shares; delete w.cost; if(w.group==="Held") w.group="Watch"; }
-    saveConfig(); renderAll();
-  });
-  $("#wlList").querySelectorAll("[data-co]").forEach(inp=>inp.onchange=()=>{
-    const w = CFG.watchlist.find(x=>x.ticker===inp.dataset.co); if(!w) return;
-    const v = parseFloat(inp.value);
-    if(isFinite(v) && v>0) w.cost=v; else delete w.cost;
-    saveConfig(); renderAll();
   });
   $("#wlList").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
     const t=b.dataset.rm;
@@ -2435,34 +2399,116 @@ function init(){
   loadAll();
   setInterval(()=>{ if(!document.hidden) loadAll(); }, 5*60*1000);
 }
-/* ==================== first-visit note ====================
-   Shared build. Everything this page knows lives in this browser's
-   localStorage — the watchlist, the alert rules, any share counts typed into
-   Settings. Nothing is uploaded, and no visitor can see or change another's.
-   ========================================================== */
-if(FIRST_VISIT){
-  document.addEventListener("DOMContentLoaded", () => {
-    const wrap = document.querySelector(".wrap"); if(!wrap) return;
-    const n = document.createElement("div");
-    n.setAttribute("role","note");
-    n.style.cssText = "border:1px solid var(--border,#ccc);border-radius:11px;padding:14px 16px;" +
-      "margin:0 0 18px;font-size:13.5px;line-height:1.55;display:flex;gap:14px;align-items:flex-start;" +
-      "background:var(--plane,#f7f7f5)";
-    n.innerHTML =
-      '<div style="flex:1">' +
-        '<b>This copy is yours. Because Bob is awesome.</b> Prices are live for everyone, but the ' +
-        'watchlist and alert rules are per-browser. Scroll to <b>Settings</b> at the bottom to swap ' +
-        'in your own tickers and thresholds — they save here automatically and will be waiting next ' +
-        'time you visit. Nothing you change is visible to anyone else. <b>Because Bob is awesome.</b>' +
-        '<div style="margin-top:7px;opacity:.75">Clearing your browser data wipes them, so use ' +
-        '<b>Save config.json</b> in Settings if you want a backup or want the same list on another device.</div>' +
-      '</div>' +
-      '<button type="button" style="flex:0 0 auto;background:none;border:0;font-size:19px;line-height:1;' +
-        'cursor:pointer;color:inherit;opacity:.55;padding:0 2px" aria-label="Dismiss">&times;</button>';
-    n.querySelector("button").onclick = () => n.remove();
-    wrap.insertBefore(n, wrap.firstChild);
-  });
+/* ==================== encrypted holdings ====================
+   The published build ships NO portfolio data in the clear. Share counts, cost
+   basis and the account label live in ENC_HOLDINGS below as AES-256-GCM
+   ciphertext, with the key derived from your PIN by PBKDF2-SHA256. Without the
+   PIN the blob is noise — "view source" gets an attacker nothing.
+
+   Honest limit: a short numeric PIN is a small keyspace. Anyone who downloads
+   this file can grind guesses offline at their own pace, and six digits is only
+   a million of them. The iteration count below makes each guess expensive, not
+   impossible. Use a longer PIN if that matters to you — set-pin.html accepts
+   any length, and nothing else has to change.
+
+   Regenerate with set-pin.html whenever your holdings change. Never upload
+   set-pin.html or _holdings.json to the repo.
+   ============================================================ */
+const ENC_HOLDINGS = "AcKWYP9KqYhfcF8HVfbIabNWTJAddxPd/z3cAUpfuy9EvlQNR0iZLoNvR3scRYwaUcPqhnJAM+zLRG2lbP/g7KZFjXoJxJmNd0qxd9GpgjCK2BK3JRpWmjFJRUQ1ux/EMKaKumhQSbZJp7ds1SNHS71dR+T+W0FJUcZo38W47ltOcUlLhQymB7t0ewEmVCik+gSHPgO6Rvd+Qv3HgWB6gO0GXSLsb5EF/pBoJPaCS2YFyl1JdBVwD334pILvrrS6LP5jIVZCHvHtcnHpP5gLsrm3QHpCpxn9q2BX4EltTbajErezCOf8lpxdFS5lduhLAosVPeHMqDfQQs6je4J6o25VGyo9Gw/e/t8jE9rji8cschHPAN4AfdVXvBgYiVP5YSZMyYDsqLfgVBgJEm51NeAI/CKRwZSUBQXr9dABFc8WyyemGgmNZKOp6rZ3+8DAdghIoaFtAtBjHVqZ4FJZurKSgi6ksk1SrNf7HaZaEtn7Q7tp8hdInvItblSYotCxXIChFKGr0DD7oMjXZAVBXs9LuXdoykumXhdFWtVb7/1cK9mGjOY863H6Hd03XkckHC9mWx2bYoVt6Uu5YSC7jskm2dCg6/3x85dFHqzjsvV3pcrO+RoLsYCXN04wIEfHuL4EZcUAtgI+qg4z4x+pdXivjW6mDqWXorfi62yNyxupeqpwH0IGog2+rmjlksYqTXbkTuS3LZ7LOvSQ+JUpiFegYnkuCqbuUsLirsBsPJ+dLJEj4UAML6Vt2NXeSmD0z0A0XwZeqff8OPMd2apSoVe306wKx20TJHJgl67rtcM="; /*PIN-PAYLOAD*/
+const PBKDF2_ITER  = 1000000;
+let HOLDINGS_UNLOCKED = false;
+
+function b64ToBytes(s){
+  const bin = atob(s), out = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
+async function deriveKey(pin, salt, usage){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:PBKDF2_ITER, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, [usage]);
+}
+async function decryptHoldings(pin){
+  const raw  = b64ToBytes(ENC_HOLDINGS);
+  const salt = raw.slice(1, 17), iv = raw.slice(17, 29), ct = raw.slice(29);
+  const key  = await deriveKey(pin, salt, "decrypt");
+  const pt   = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+/* Merge decrypted positions into the live config, then re-render. positions()
+   keys off `shares`, so every portfolio panel repopulates on its own. */
+function applyHoldings(h){
+  CFG.positionsAsOf   = h.positionsAsOf   || null;
+  CFG.positionsSource = h.positionsSource || null;
+  const byT = new Map((h.positions||[]).map(p=>[p.ticker, p]));
+  (CFG.watchlist||[]).forEach(w=>{
+    const p = byT.get(w.ticker); if(!p) return;
+    if(isFinite(p.shares)) w.shares = +p.shares;
+    if("cost" in p) w.cost = (p.cost===null || !isFinite(p.cost)) ? null : +p.cost;
+  });
+  HOLDINGS_UNLOCKED = true;
+  const b = document.getElementById("unlockBtn");
+  if(b){ b.textContent = "🔓 Holdings"; b.title = "Holdings visible — reload the page to hide them again"; }
+  renderAll();
+}
+function lockHoldings(){
+  (CFG.watchlist||[]).forEach(w=>{ delete w.shares; delete w.cost; });
+  CFG.positionsAsOf = CFG.positionsSource = null;
+  HOLDINGS_UNLOCKED = false;
+  const b = document.getElementById("unlockBtn");
+  if(b){ b.textContent = "🔒 Holdings"; b.title = "Enter your PIN to show share counts and portfolio value"; }
+  renderAll();
+}
+
+function pinPrompt(){
+  if(HOLDINGS_UNLOCKED){ lockHoldings(); return; }
+  if(!ENC_HOLDINGS){
+    alert("No holdings payload has been set on this copy yet.\n\nOpen set-pin.html on your own machine, choose a PIN, and it will produce a configured index.html to upload.");
+    return;
+  }
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:20px";
+  ov.innerHTML =
+    '<form style="background:var(--card,#fff);color:var(--fg,#111);border-radius:14px;padding:22px;max-width:340px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.35)">' +
+      '<h2 style="margin:0 0 4px;font-size:17px">Show holdings</h2>' +
+      '<p style="margin:0 0 14px;font-size:13px;opacity:.75;line-height:1.45">Prices, alerts and signals are already live. The PIN only reveals share counts, cost basis and portfolio value.</p>' +
+      '<input id="pinIn" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" ' +
+        'style="width:100%;box-sizing:border-box;font-size:19px;letter-spacing:.14em;padding:11px 12px;border-radius:9px;border:1px solid var(--bd,#ccc);background:var(--bg,#fff);color:inherit">' +
+      '<div id="pinMsg" style="min-height:18px;font-size:12.5px;margin:9px 2px 0;color:#c0392b"></div>' +
+      '<div style="display:flex;gap:9px;margin-top:12px">' +
+        '<button type="submit" id="pinGo" class="btn" style="flex:1">Unlock</button>' +
+        '<button type="button" id="pinX" class="btn ghost" style="flex:1">Cancel</button>' +
+      '</div>' +
+    '</form>';
+  document.body.appendChild(ov);
+  const inp = ov.querySelector("#pinIn"), msg = ov.querySelector("#pinMsg"), go = ov.querySelector("#pinGo");
+  const close = () => ov.remove();
+  inp.focus();
+  ov.querySelector("#pinX").onclick = close;
+  ov.addEventListener("click", e => { if(e.target === ov) close(); });
+  let tries = 0;
+  ov.querySelector("form").onsubmit = async (e) => {
+    e.preventDefault();
+    const pin = inp.value; if(!pin) return;
+    go.disabled = true; go.textContent = "Unlocking…"; msg.textContent = "";
+    try{
+      const h = await decryptHoldings(pin);
+      close(); applyHoldings(h);
+    }catch(err){
+      tries++;
+      /* Cosmetic backoff. It slows a human at the keyboard; it does nothing
+         against someone brute-forcing the downloaded file offline. */
+      await new Promise(r => setTimeout(r, Math.min(2000, 250 * tries)));
+      msg.textContent = "That PIN didn't work.";
+      go.disabled = false; go.textContent = "Unlock"; inp.select();
+    }
+  };
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const b = document.getElementById("unlockBtn");
+  if(b){ b.title = "Enter your PIN to show share counts and portfolio value"; b.addEventListener("click", pinPrompt); }
+});
+
 
 init();
 </script>
