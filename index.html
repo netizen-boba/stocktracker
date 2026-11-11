@@ -652,7 +652,7 @@ const SERIES_VARS = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
 /* Since Nov 2026 stockanalysis.com rejects (503) requests sent straight from another website,
    so data goes through a small Cloudflare Worker (worker.js) that fetches it server-side and
    adds CORS headers. Replace the URL below with your Worker's address. */
-const API = "https://stock-proxy.YOUR-SUBDOMAIN.workers.dev/api";
+const API = "https://stock-proxy.bandros.workers.dev/api";
 
 /* stockanalysis carries no exchange rates, so a non-US listing is converted with the ECB's
    daily reference rates (frankfurter.dev, a thin free wrapper over the ECB's own series —
